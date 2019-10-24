@@ -1,0 +1,113 @@
+{
+	"database_connections": {
+		"host": "127.0.0.1",
+		"database": "cloud_computing_project",
+		"initialize_db": "postgres",
+		"user": "postgres",
+		"password": "...",
+		"channel": "channel",
+		"port": "5432"
+	},
+	"database_configuration": {
+		"database_name": "cloud_computing_project",
+		"process_registration": "process_heartbeat",
+		"process_registration_columns": [
+			"process_registration_id",
+			"process_pid",
+			"process_host_ip",
+			"process_name",
+			"process_heartbeat_ts"
+		],
+		"process_registration_dtypes": [
+			"SERIAL PRIMARY KEY",
+			"INTEGER",
+			"TEXT",
+			"TEXT",
+			"INTEGER DEFAULT round( date_part( 'epoch', now() ) )"
+		]
+	},
+	"files": {
+		"insert_heartbeat_sp": "sql_files/insert_into_process_hb_tbl.sql"
+	},
+	"logging_files": {
+		"create_db_logging": "logs/create_db.log"
+	},
+	"remove_db_configuration": {
+		"user_submission_name": "user_submision_table",
+		"user_submission_table": [
+			"submission_id",
+			"job_id",
+			"photo_path",
+			"submission_time"
+		],
+		"user_submission_dtypes": [
+			"SERIAL PRIMARY KEY",
+			"TEXT",
+			"TEXT",
+			"INTEGER DEFAULT round( date_part( 'epoch', now() ) )"
+		],
+		"image_processing_name": "image_processing_result",
+		"image_processing_table": [
+			"processing_id",
+			"job_id",
+			"processed_photo_path",
+			"original_photo_path",
+			"submission_time"
+		],
+		"image_processing_dtypes": [
+			"SERIAL PRIMARY KEY",
+			"TEXT",
+			"TEXT",
+			"TEXT",
+			"INTEGER DEFAULT round( date_part( 'epoch', now() ) )"
+		],
+		"facial_detection_name": "facial_detection_result",
+		"facial_detection_table": [
+			"facial_detection_id",
+			"job_id",
+			"processed_photo_path",
+			"original_photo_path",
+			"bounding_box_x",
+			"bounding_box_y",
+			"bounding_box_width",
+			"bounding_box_height",
+			"submission_time"
+		],
+		"facial_detection_dtypes": [
+			"SERIAL PRIMARY KEY",
+			"TEXT",
+			"TEXT",
+			"TEXT",
+			"INTEGER",
+			"INTEGER",
+			"INTEGER",
+			"INTEGER",
+			"INTEGER DEFAULT round( date_part( 'epoch', now() ) )"
+		],
+		"facial_recognition_name": "facial_recognition_result",
+		"facial_recognition_table": [
+			"facial_recognition_id",
+			"job_id",
+			"photo_path",
+			"person_name",
+			"submission_time"
+		],
+		"facial_recognition_dtype": [
+			"SERIAL PRIMARY KEY",
+			"TEXT",
+			"TEXT",
+			"TEXT",
+			"INTEGER DEFAULT round( date_part( 'epoch', now() ) )"
+		],
+		"files": {
+			"insert_user_submission_sp": "sql_files/insert_into_user_submission.sql",
+			"insert_image_processing_sp": "sql_files/image_processing_insert.sql",
+			"insert_facial_detection_sp": "sql_files/facial_detection_insert.sql",
+			"insert_facial_recognition_sp": "sql_files/insert_facial_recognition.sql",
+			"retrieve_user_submission_sp": "sql_files/retrieve_submission_row.sql",
+			"retrieve_image_processing_sp": "sql_files/image_processing_retrieve.sql",
+			"retrieve_facial_detection_sp": "sql_files/facial_detection_retrieve.sql",
+			"retrieve_facial_recognition_sp": "sql_files/facial_recognition_retrieve.sql"
+		}
+	}
+}
