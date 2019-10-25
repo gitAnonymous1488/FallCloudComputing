@@ -10,13 +10,13 @@
 	},
 	"database_configuration": {
 		"database_name": "cloud_computing_project",
-		"process_registration": "process_heartbeat",
+		"process_registration": "process_registration_table",
 		"process_registration_columns": [
 			"process_registration_id",
 			"process_pid",
 			"process_host_ip",
 			"process_name",
-			"process_heartbeat_ts"
+			"registration_time"
 		],
 		"process_registration_dtypes": [
 			"SERIAL PRIMARY KEY",
@@ -24,6 +24,43 @@
 			"TEXT",
 			"TEXT",
 			"INTEGER DEFAULT round( date_part( 'epoch', now() ) )"
+		],
+		"process_heartbeat_name": "process_heartbeat_table",
+		"process_heartbeat_columns": [
+			"process_heartbeat_id",
+			"process_registration_id",
+			"process_heartbeat_time",
+			"has_been_pulled"
+		],
+		"process_heartbeat_dtypes": [
+			"SERIAL PRIMARY KEY",
+			"INTEGER",
+			"INTEGER DEFAULT round( date_part( 'epoch', now() ) )",
+			"BOOL"
+		],
+		"node_registration_name": "node_registration_table",
+		"node_registration_columns": [
+			"node_registration_id",
+			"node_ip",
+			"registration_time"
+		],
+		"node_registration_dtypes": [
+			"SERIAL PRIMARY KEY",
+			"TEXT UNIQUE",
+			"INTEGER DEFAULT round( date_part( 'epoch', now() ) )"
+		],
+		"node_heartbeat_name": "node_heartbeat_table",
+		"node_heartbeat_columns": [
+			"node_heartbeat_id",
+			"node_registration_id",
+			"node_heartbeat_time",
+			"has_been_pulled"
+		],
+		"node_registration_dtypes": [
+			"SERIAL PRIMARY KEY",
+			"INTEGER",
+			"INTEGER DEFAULT round( date_part( 'epoch', now() ) )",
+			"BOOL"
 		]
 	},
 	"files": {

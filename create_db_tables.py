@@ -138,16 +138,52 @@ def create_tables(connection):
 		log_msg("Unable to read config file. {}".format(e))
 		exit(-1)
 
-###############					 CREATE THE PROCESS HEARTBEAT TABLE!!!
+###############					 CREATE THE PROCESS REGISTRATION TABLE!!!
 	process_reg_table 			= file_content["database_configuration"]["process_registration"]
 	process_reg_columns 		= file_content["database_configuration"]["process_registration_columns"]
 	process_reg_dtypes 			= file_content["database_configuration"]["process_registration_dtypes"]
-	process_re_columns 			= zip_cols_together(process_reg_columns, process_reg_dtypes)
+	process_reg_columns 		= zip_cols_together(process_reg_columns, process_reg_dtypes)
 
 	try:
-		create_table_sql(connection, process_reg_table, process_re_columns)
+		create_table_sql(connection, process_reg_table, process_reg_columns)
 	except Exception as e:
-		log_msg("Unable to create heartbeat table. {}".format(e))
+		log_msg("Unable to create process registration table. {}".format(e))
+		exit(-1)
+
+###############					 CREATE THE PROCESS HEARTBEAT TABLE!!!
+	process_hb_table 			= file_content["database_configuration"]["process_heartbeat_name"]
+	process_hb_columns 			= file_content["database_configuration"]["process_heartbeat_columns"]
+	process_hb_dtypes 			= file_content["database_configuration"]["process_heartbeat_dtypes"]
+	process_hb_columns 			= zip_cols_together(process_hb_columns, process_hb_dtypes)
+
+	try:
+		create_table_sql(connection, process_hb_table, process_hb_columns)
+	except Exception as e:
+		log_msg("Unable to create process heartbeat table. {}".format(e))
+		exit(-1)
+
+###############					 CREATE THE NODE REGISTRATION TABLE!!!
+	node_reg_table 				= file_content["database_configuration"]["node_registration_name"]
+	node_reg_columns 			= file_content["database_configuration"]["node_registration_columns"]
+	node_reg_dtypes 			= file_content["database_configuration"]["node_registration_dtypes"]
+	node_reg_columns 			= zip_cols_together(node_reg_columns, node_reg_dtypes)
+
+	try:
+		create_table_sql(connection, node_reg_table, node_reg_columns)
+	except Exception as e:
+		log_msg("Unable to create node registration table. {}".format(e))
+		exit(-1)
+
+###############					 CREATE THE NODE HEARTBEAT TABLE!!!
+	node_hb_table 				= file_content["database_configuration"]["node_heartbeat_name"]
+	node_hb_columns 			= file_content["database_configuration"]["node_heartbeat_columns"]
+	node_hb_dtypes 				= file_content["database_configuration"]["node_registration_dtypes"]
+	node_hb_columns 			= zip_cols_together(node_hb_columns, node_hb_dtypes)
+
+	try:
+		create_table_sql(connection, node_hb_table, node_hb_columns)
+	except Exception as e:
+		log_msg("Unable to create node heartbeat table. {}".format(e))
 		exit(-1)
 
 ###############					 CREATE THE SUBMISSION TABLE!!!	
