@@ -180,7 +180,7 @@ def create_tables(connection):
 ###############					 CREATE THE NODE HEARTBEAT TABLE!!!
 	node_hb_table 				= file_content["database_configuration"]["node_heartbeat_name"]
 	node_hb_columns 			= file_content["database_configuration"]["node_heartbeat_columns"]
-	node_hb_dtypes 				= file_content["database_configuration"]["node_registration_dtypes"]
+	node_hb_dtypes 				= file_content["database_configuration"]["node_heartbeat_dtypes"]
 	node_hb_columns 			= zip_cols_together(node_hb_columns, node_hb_dtypes)
 
 	try:
@@ -332,6 +332,104 @@ def create_stored_procedures(connection):
 		exit(-1)
 
 
+###############					 CREATE THE NODE CRONJOB CLEANUP FUNCTION !!!
+	try:
+		create_sql_from_file(file_content["files"]["node_cron_job_cleanup_function"], connection)
+	except Exception as e:
+		log_msg("Unable to create node cronjob cleanup function. {}".format(e))
+		exit(-1)
+
+
+def create_triggers(connection):
+	try:
+		file_content = read_configs.retrieve_config()
+	except Exception as e:
+		log_msg("Unable to read config file. {}".format(e))
+		exit(-1)
+
+
+	###############					 CREATE THE AFTER INSERT NODE REGISTER FUNCTION/TRIGGER!!!
+	try:
+		create_sql_from_file(file_content["files"]["after_node_register_function"], connection)
+	except Exception as e:
+		log_msg("Unable to create after node register trigger function. {}".format(e))
+		exit(-1)
+
+	try:
+		create_sql_from_file(file_content["files"]["after_node_register_trigger"], connection)
+	except Exception as e:
+		log_msg("Unable to create after node register trigger. {}".format(e))
+		exit(-1)
+
+
+	###############					 CREATE THE AFTER DELETE NODE REGISTER FUNCTION/TRIGGER!!!
+	try:
+		create_sql_from_file(file_content["files"]["after_node_delete_function"], connection)
+	except Exception as e:
+		log_msg("Unable to create after node delete trigger function. {}".format(e))
+		exit(-1)
+
+	try:
+		create_sql_from_file(file_content["files"]["after_node_delete_trigger"], connection)
+	except Exception as e:
+		log_msg("Unable to create after node delete trigger. {}".format(e))
+		exit(-1)
+
+
+	###############					 CREATE THE AFTER INSERT PROCESS REGISTER FUNCTION/TRIGGER!!!
+	try:
+		create_sql_from_file(file_content["files"]["after_process_register_function"], connection)
+	except Exception as e:
+		log_msg("Unable to create after process register trigger function. {}".format(e))
+		exit(-1)
+
+	try:
+		create_sql_from_file(file_content["files"]["after_process_register_trigger"], connection)
+	except Exception as e:
+		log_msg("Unable to create after process register trigger. {}".format(e))
+		exit(-1)
+
+
+	###############					 CREATE THE AFTER DELETE PROCESS REGISTER FUNCTION/TRIGGER!!!
+	try:
+		create_sql_from_file(file_content["files"]["after_process_delete_function"], connection)
+	except Exception as e:
+		log_msg("Unable to create after process delete trigger function. {}".format(e))
+		exit(-1)
+
+	try:
+		create_sql_from_file(file_content["files"]["after_process_delete_trigger"], connection)
+	except Exception as e:
+		log_msg("Unable to create after process delete trigger. {}".format(e))
+		exit(-1)
+
+
+	###############					 CREATE THE AFTER INSERT NODE HEARTBEAT FUNCTION/TRIGGER!!!
+	try:
+		create_sql_from_file(file_content["files"]["after_node_heartbeat_function"], connection)
+	except Exception as e:
+		log_msg("Unable to create after node heartbeat trigger function. {}".format(e))
+		exit(-1)
+
+	try:
+		create_sql_from_file(file_content["files"]["after_node_heartbeat_trigger"], connection)
+	except Exception as e:
+		log_msg("Unable to create after node heartbeat trigger. {}".format(e))
+		exit(-1)
+
+
+	###############					 CREATE THE AFTER INSERT PROCESS HEARTBEAT FUNCTION/TRIGGER!!!
+	try:
+		create_sql_from_file(file_content["files"]["after_process_heartbeat_function"], connection)
+	except Exception as e:
+		log_msg("Unable to create after process heartbeat trigger function. {}".format(e))
+		exit(-1)
+
+	try:
+		create_sql_from_file(file_content["files"]["after_process_heartbeat_trigger"], connection)
+	except Exception as e:
+		log_msg("Unable to create after process heartbeat trigger. {}".format(e))
+		exit(-1)
 
 
 
@@ -348,7 +446,18 @@ if __name__ == "__main__":
 		log_msg("Unable to connect to the DB. {}".format(e))
 
 	conn = connect_to_db()
+
 	create_tables(conn)
 	create_stored_procedures(conn)
+	create_triggers(conn)
 
 
+
+
+
+"""
+select * from node_registration_table;
+select * from node_heartbeat_table;
+select * from process_registration_table;
+select * from process_heartbeat_table;
+"""

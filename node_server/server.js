@@ -4,10 +4,14 @@ const config_json = require("../config.json");
 
 const http = require('http');
 const web_socket = require('ws');
+const heartbeats = require('heartbeats');
 
 
 const express = require('express');
 const app = express();
+
+
+const hb_timer = 4000;
 
 
 // ############### PG CONNECTION ###############
@@ -35,9 +39,25 @@ pool.connect((err, client, done) => {
 	});
 	
 	var query = client.query("LISTEN channel");
-})
+});
 
 // ###############################################
+
+// ############### HEARTBEAT THE SERVER ###############
+const heart = heartbeats.createHeart(hb_timer);
+heart.createEvent(1, function(count, last){
+	pool.connect((err, client, done) => {
+		if (err) throw err;
+
+		client.query("SELECT * FROM node_cron_job_cleanup();", [], (err, res) => {
+			done();
+
+			if (err) throw err;
+
+		});
+	});
+});
+// ############### HEARTBEAT THE SERVER ###############
 
 
 var http_server = http.createServer(app);

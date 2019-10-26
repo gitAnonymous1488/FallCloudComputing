@@ -1,18 +1,21 @@
 # What is this going to be? The node registration or the process registration?
 
 import threading, time, sys, uuid, select, os, socket
-import psycopg2, platform
+import psycopg2, platform, netifaces
 from psycopg2.extensions import STATUS_BEGIN, STATUS_READY
 import read_configs
 
 # TODO: PUT THIS IN THE CONFIG
-SELECT_TIMEOUT 		= 6
-HEARTBEAT_SLEEP 	= 5
+SELECT_TIMEOUT 			= 6
+HEARTBEAT_SLEEP 		= 1
+MISSED_HEARTBEAT_KILL 	= 2
 # 
 
-HOST_IP 			= "testing"
+HOST_IP 			= netifaces.ifaddresses('enp0s31f6')[2][0]["addr"]
 PID 				= os.getpid()
-HB_STR 				= "SELECT * from process_heartbeat_insert(%s,%s);"
+NAME 				= "facial-detection"
+REGISTER_STR 		= "SELECT * FROM insert_process_registration(%s,%s,%s);"
+HB_STR 				= "SELECT * FROM insert_process_hb(%s);"
 REGISTRATION_ID		= None
 
 ###############					 REMOVE THE EXIT CONDITION !!!
@@ -51,12 +54,24 @@ class db_heartbeat_thread(threading.Thread):
 
 	def run(self):
 
+		miss_count = 0
+
 		if self.connection.status != STATUS_READY:
 			return None
 
+		time.sleep(HEARTBEAT_SLEEP)
+
 		with self.connection.cursor() as curs:
 			while self.connection.status == STATUS_READY:
-				curs.execute(HB_STR, (PID, HOST_IP))
+
+				if REGISTRATION_ID is not None:
+					curs.execute(HB_STR, (REGISTRATION_ID,))
+					miss_count = 0
+				elif MISSED_HEARTBEAT_KILL < miss_count:
+					os.system('kill -9 %d' % PID)
+				else:
+					miss_count += 1
+
 				time.sleep(HEARTBEAT_SLEEP)
 
 
@@ -74,6 +89,22 @@ class db_process_thread(threading.Thread):
 
 		self.curs = None
 		self.uuid = uuid.uuid4()
+
+		self.register()
+
+
+	def register(self):
+		global REGISTRATION_ID
+
+		if self.connection.status != STATUS_READY:
+			# make this log
+			exit("Cannot register")
+
+		with self.connection.cursor() as curs:
+			curs.execute(REGISTER_STR, [NAME, PID, HOST_IP])
+			for row in curs.fetchone():
+				REGISTRATION_ID = row
+
 
 
 	def run(self):
@@ -105,6 +136,7 @@ class db_process_thread(threading.Thread):
 if __name__ == "__main__":
 	# if len(sys.argv) < 2:
 	# 	exit("You didnt pass in a process name")
+	# os.system('kill %d' % os.getpid())
 
 	db_thread = db_process_thread()
 	db_thread.start()

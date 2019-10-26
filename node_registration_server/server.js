@@ -11,7 +11,7 @@ var NODE_REG_ID = null;
 
 // CONFIG ENTRIES
 const port = 4001;
-const heart = heartbeats.createHeart(1000);
+const hb_timer = 1000;
 
 
 // ############### PG CONNECTION SETTINGS ###############
@@ -56,6 +56,7 @@ pool.connect((err, client, done) => {
 
 
 // ############### HEARTBEAT THE SERVER ###############
+const heart = heartbeats.createHeart(hb_timer);
 heart.createEvent(1, function(count, last){
 	pool.connect((err, client, done) => {
 		if (err) throw err;
