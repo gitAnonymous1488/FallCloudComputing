@@ -1,6 +1,6 @@
 -- TODO: MAKE THIS A STORED PROCEDURE
-CREATE OR REPLACE FUNCTION insert_process_hb(
-	IN in_process_registration_id INTEGER
+CREATE OR REPLACE FUNCTION insert_node_registration(
+	IN in_ip TEXT
 ) RETURNS INTEGER AS $$
 BEGIN
 

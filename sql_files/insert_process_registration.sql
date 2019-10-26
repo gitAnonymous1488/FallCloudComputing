@@ -1,0 +1,12 @@
+-- TODO: MAKE THIS A STORED PROCEDURE
+CREATE OR REPLACE FUNCTION insert_process_registration(
+	IN in_name TEXT,
+	IN in_pid INTEGER,
+	IN in_ip TEXT
+) RETURNS INTEGER AS $$
+BEGIN
+
+	RETURN 1;
+END;
+$$
+LANGUAGE plpgsql;

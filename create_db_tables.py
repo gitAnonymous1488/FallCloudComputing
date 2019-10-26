@@ -20,6 +20,9 @@ if __name__ == "__main__":
 
 	LOGGING_FILE 	= file_content["logging_files"]["create_db_logging"]
 
+	if not os.path.exists("logs"):
+		os.mkdir("logs")
+
 	# CLEAR OR CREATE THE LOGGING FILE
 	with open(LOGGING_FILE, "w+") as f:
 		pass
@@ -249,6 +252,13 @@ def create_stored_procedures(connection):
 		log_msg("Unable to create insert heartbeat function. {}".format(e))
 		exit(-1)
 
+###############					 CREATE THE PROCESS REGISTRATION INSERT FUNCTION !!!	
+	try:
+		create_sql_from_file(file_content["files"]["insert_process_registration_sp"], connection)
+	except Exception as e:
+		log_msg("Unable to create insert process registration function. {}".format(e))
+		exit(-1)
+
 ###############					 CREATE THE USER SUBMISSION INSERT FUNCTION !!!
 	try:
 		create_sql_from_file(file_content["remove_db_configuration"]["files"]["insert_user_submission_sp"], connection)
@@ -303,6 +313,22 @@ def create_stored_procedures(connection):
 		create_sql_from_file(file_content["remove_db_configuration"]["files"]["retrieve_facial_recognition_sp"], connection)
 	except Exception as e:
 		log_msg("Unable to create retrieve facial recognition function. {}".format(e))
+		exit(-1)
+
+
+###############					 CREATE THE INSERT NODE REGISTRATION FUNCTION !!!
+	try:
+		create_sql_from_file(file_content["files"]["insert_node_registration_sp"], connection)
+	except Exception as e:
+		log_msg("Unable to create insert node registration function. {}".format(e))
+		exit(-1)
+
+
+###############					 CREATE THE INSERT NODE HB FUNCTION !!!
+	try:
+		create_sql_from_file(file_content["files"]["insert_node_heartbeat_sp"], connection)
+	except Exception as e:
+		log_msg("Unable to create insert node heartbeat function. {}".format(e))
 		exit(-1)
 
 

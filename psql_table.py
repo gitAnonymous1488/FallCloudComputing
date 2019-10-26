@@ -1,3 +1,5 @@
+# What is this going to be? The node registration or the process registration?
+
 import threading, time, sys, uuid, select, os, socket
 import psycopg2, platform
 from psycopg2.extensions import STATUS_BEGIN, STATUS_READY
@@ -11,11 +13,15 @@ HEARTBEAT_SLEEP 	= 5
 HOST_IP 			= "testing"
 PID 				= os.getpid()
 HB_STR 				= "SELECT * from process_heartbeat_insert(%s,%s);"
-
+REGISTRATION_ID		= None
 
 ###############					 REMOVE THE EXIT CONDITION !!!
 if __name__ == "__main__":
-	file_content 	= read_configs.retrieve_config()
+	try:
+		file_content = read_configs.retrieve_config()
+	except Exception as e:
+		exit("Unable to read config file. {}".format(e))
+
 	CHANNEL 		= file_content["database_connections"]["channel"]
 	HOST 			= file_content["database_connections"]["host"]
 	PASS 			= file_content["database_connections"]["password"]
@@ -92,6 +98,7 @@ class db_process_thread(threading.Thread):
 	def recvCallback(self, notification):
 		if notification.payload:
 			print("callback: ", notification.payload)
+
 
 
 

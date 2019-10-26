@@ -64,7 +64,10 @@
 		]
 	},
 	"files": {
-		"insert_heartbeat_sp": "sql_files/insert_into_process_hb_tbl.sql"
+		"insert_heartbeat_sp": "sql_files/insert_into_process_hb_tbl.sql",
+		"insert_node_registration_sp": "sql_files/insert_node_registration.sql",
+		"insert_node_heartbeat_sp": "sql_files/insert_node_hb.sql",
+		"insert_process_registration_sp": "sql_files/insert_process_registration.sql"
 	},
 	"logging_files": {
 		"create_db_logging": "logs/create_db.log"
