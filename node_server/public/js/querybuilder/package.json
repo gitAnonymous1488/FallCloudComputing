@@ -1,0 +1,49 @@
+{
+  "_from": "@xbs/querybuilder",
+  "_id": "@xbs/querybuilder@6.4.0",
+  "_inBundle": false,
+  "_integrity": "sha512-MSIt5ik+nOEMW7/wuqdYpGvF56gmm70JQk6zHmCF7bGQe5K2gJoBP3vtDrq4MjsDs9fXOt2pc2Q1atMkRV2j+Q==",
+  "_location": "/@xbs/querybuilder",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "@xbs/querybuilder",
+    "name": "@xbs/querybuilder",
+    "escapedName": "@xbs%2fquerybuilder",
+    "scope": "@xbs",
+    "rawSpec": "",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://npm.webix.com/@xbs%2fquerybuilder/-/querybuilder-6.4.0.tgz",
+  "_shasum": "ee2f57e3abad19738140aeb6d9eb61c1a7ee3691",
+  "_spec": "@xbs/querybuilder",
+  "_where": "/home/merc4christ/TomServo/workspace/test_app",
+  "author": {
+    "name": "XB Software"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Webix UI",
+  "keywords": [
+    "webix",
+    "ui",
+    "widgets"
+  ],
+  "license": "SEE LICENSE IN license.text",
+  "main": "querybuilder.js",
+  "name": "@xbs/querybuilder",
+  "publishConfig": {
+    "registry": "https://npm.webix.com"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "types": "types/querybuilder.d.ts",
+  "version": "6.4.0"
+}

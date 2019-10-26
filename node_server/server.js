@@ -14,35 +14,6 @@ const app = express();
 const hb_timer = 4000;
 
 
-// ############### PG CONNECTION ###############
-const db_config = {
-	"user": config_json.database_connections.user,
-	"password": config_json.database_connections.password,
-	"host": config_json.database_connections.host,
-	"database": config_json.database_connections.database,
-	"port": config_json.database_connections.port
-};
-
-const { Pool } = require('pg');
-const pool = new Pool(db_config);
-
-pool.on('error', (err, client) => {
-	console.error('Unexpected error on idle client', err)
-	process.exit(-1)
-});
-
-pool.connect((err, client, done) => {
-	if (err) throw err;
-
-	client.on('notification', function(msg) {
-		console.log(msg);
-	});
-	
-	var query = client.query("LISTEN channel");
-});
-
-// ###############################################
-
 // ############### HEARTBEAT THE SERVER ###############
 const heart = heartbeats.createHeart(hb_timer);
 heart.createEvent(1, function(count, last){
@@ -74,6 +45,94 @@ wss.on('connection', function connection(ws) {
 	// ws.send('something');
 	// console.log("Connection")
 });
+
+function broadcast_msg(msg) {
+	wss.clients.forEach(function each(client) {
+		if (client.readyState === web_socket.OPEN) {
+			client.send(msg);
+		}
+	});
+}
+// ###############################################
+
+// ############### PG CONNECTION ###############
+const db_config = {
+	"user": config_json.database_connections.user,
+	"password": config_json.database_connections.password,
+	"host": config_json.database_connections.host,
+	"database": config_json.database_connections.database,
+	"port": config_json.database_connections.port
+};
+
+const { Pool } = require('pg');
+const pool = new Pool(db_config);
+
+pool.on('error', (err, client) => {
+	console.error('Unexpected error on idle client', err)
+	process.exit(-1)
+});
+
+pool.connect((err, client, done) => {
+	if (err) throw err;
+
+	client.on('notification', function(msg) {
+
+		broadcast_msg(JSON.stringify(msg));
+	});
+	
+	var query = client.query("LISTEN delete_node_event");
+});
+
+pool.connect((err, client, done) => {
+	if (err) throw err;
+
+	client.on('notification', function(msg) {
+		broadcast_msg(JSON.stringify(msg));
+	});
+	
+	var query = client.query("LISTEN new_node_heartbeat_event");
+});
+
+pool.connect((err, client, done) => {
+	if (err) throw err;
+
+	client.on('notification', function(msg) {
+		broadcast_msg(JSON.stringify(msg));
+	});
+	
+	var query = client.query("LISTEN new_node_event");
+});
+
+pool.connect((err, client, done) => {
+	if (err) throw err;
+
+	client.on('notification', function(msg) {
+		broadcast_msg(JSON.stringify(msg));
+	});
+	
+	var query = client.query("LISTEN delete_process_event");
+});
+
+pool.connect((err, client, done) => {
+	if (err) throw err;
+
+	client.on('notification', function(msg) {
+		broadcast_msg(JSON.stringify(msg));
+	});
+	
+	var query = client.query("LISTEN new_process_heartbeat_event");
+});
+
+pool.connect((err, client, done) => {
+	if (err) throw err;
+
+	client.on('notification', function(msg) {
+		broadcast_msg(JSON.stringify(msg));
+	});
+	
+	var query = client.query("LISTEN new_process_event");
+});
+
 // ###############################################
 
 http_server.listen(port);

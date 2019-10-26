@@ -1,0 +1,49 @@
+{
+  "_from": "@xbs/scheduler",
+  "_id": "@xbs/scheduler@6.4.0",
+  "_inBundle": false,
+  "_integrity": "sha512-1EZfQiJHlej9HfusxOmB7E4DxKq7S3qAWV1yzgc3SGxLdQ9EwMUJu02m0cwgK68tizDp9xrBjPbANJJ+txNUOA==",
+  "_location": "/@xbs/scheduler",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "@xbs/scheduler",
+    "name": "@xbs/scheduler",
+    "escapedName": "@xbs%2fscheduler",
+    "scope": "@xbs",
+    "rawSpec": "",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://npm.webix.com/@xbs%2fscheduler/-/scheduler-6.4.0.tgz",
+  "_shasum": "95f7947eeded22a721b6be2e59d6f3d63ae89e58",
+  "_spec": "@xbs/scheduler",
+  "_where": "/home/merc4christ/TomServo/workspace/test_app",
+  "author": {
+    "name": "XB Software"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Webix UI",
+  "keywords": [
+    "webix",
+    "ui",
+    "widgets"
+  ],
+  "license": "SEE LICENSE IN license.text",
+  "main": "scheduler.js",
+  "name": "@xbs/scheduler",
+  "publishConfig": {
+    "registry": "https://npm.webix.com"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "types": "types/scheduler.d.ts",
+  "version": "6.4.0"
+}
