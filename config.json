@@ -80,7 +80,10 @@
 		"after_node_heartbeat_trigger": "sql_files/after_node_heartbeat_trigger.sql",
 		"after_process_heartbeat_function": "sql_files/after_process_heartbeat_trigger_function.sql",
 		"after_process_heartbeat_trigger": "sql_files/after_process_heartbeat_trigger.sql",
-		"node_cron_job_cleanup_function": "sql_files/node_cron_job_cleanup_function.sql"
+		"node_cron_job_cleanup_function": "sql_files/node_cron_job_cleanup_function.sql",
+		"process_cron_job_cleanup_function": "sql_files/process_cron_job_cleanup_function.sql", 
+		"node_registration_view": "sql_files/node_registration_data_view.sql", 
+		"process_registration_view": "sql_files/process_registration_data_view.sql"
 	},
 	"logging_files": {
 		"create_db_logging": "logs/create_db.log"

@@ -78,7 +78,7 @@ heart.createEvent(1, function(count, last){
 // ############### HEARTBEAT THE SERVER ###############
 
 
-app.get('/', (req, res) => res.send('Hello World!'));
+// app.get('/', (req, res) => res.send('Hello World!'));
 app.post("start/:name", (req, res) => res.send("Started"));
 app.delete("kill/:pid", (req, res) => res.send("Killed"));
 
