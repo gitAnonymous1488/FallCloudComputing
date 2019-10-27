@@ -1,5 +1,5 @@
 var ws = new ReconnectingWebSocket('ws://localhost:3000');
-console.log("here");
+// console.log("here");
 
 
 let BEGIN_NODE_INSERT = false, BEGIN_PROCESS_INSERT = false;
@@ -13,6 +13,8 @@ ws.onmessage = (e) => {
 
 	// new_node_event
 	let data = JSON.parse(e.data);
+
+	// console.log(data);
 
 	if (!data.hasOwnProperty('channel') || !data.hasOwnProperty("payload"))
 		return;
@@ -35,6 +37,10 @@ ws.onmessage = (e) => {
 
 	if (data.channel == "new_node_heartbeat_event") {
 		let update_row = $$("node_registration_table").getItem(res[0]);
+
+		if (update_row == undefined)
+			return;
+
 		update_row.last_heartbeat_time = res[1];
 		$$("node_registration_table").updateItem(res[0], update_row);
 	}
@@ -51,6 +57,10 @@ ws.onmessage = (e) => {
 
 	if (data.channel == "new_process_heartbeat_event") {
 		let update_row = $$("process_registration_table").getItem(res[0]);
+
+		if (update_row == undefined)
+			return;
+		
 		update_row.last_heartbeat_time = res[1];
 		$$("process_registration_table").updateItem(res[0], update_row);
 	}
@@ -124,6 +134,7 @@ webix.ui({
 										});
 
 										BEGIN_NODE_INSERT = true;
+										console.log(res)
 									}
 								})
 							}
@@ -152,7 +163,6 @@ webix.ui({
 									dataType: "json",
 									success: function(res) {
 
-										console.log(res)
 
 										res.forEach( a => {
 											$$("process_registration_table").add({
@@ -165,6 +175,7 @@ webix.ui({
 										});
 
 										BEGIN_PROCESS_INSERT = true;
+										console.log(res)
 									}
 								})
 							}
