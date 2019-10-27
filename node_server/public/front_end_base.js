@@ -42,12 +42,28 @@ ws.onclose = (e) => {
 
 webix.ui({
 	rows:[
-		{gravity: 1},
+		{gravity: 1, view: "label", label: "CLOUD COMPUTING PROJECT"},
 		{
 			gravity: 8,
 			cols: [
-				{gravity: 1},
 				{
+					gravity: 1,
+					view:"sidebar",
+					// css:theme,
+					width:200,
+					// collapsed:(screen !== "wide")
+					data:[
+						{ id:"transactions", value: "Dashboard", icon:"mdi mdi-cart" },
+						{ id:"customers", value: "Administration", icon:"mdi mdi-account-box", data:[
+							{ id: "dashboard1", value: "Administration 1"},
+							{ id: "dashboard2", value: "Administration 2"}
+						]},
+					], on:{
+						onAfterSelect: function(id){
+							webix.message("Selected: "+this.getItem(id).value)
+						}
+					}
+				}, {
 					gravity: 5,
 					view:"datatable", 
 					id: "node_registration_table",

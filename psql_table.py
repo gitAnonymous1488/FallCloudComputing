@@ -1,6 +1,6 @@
 # What is this going to be? The node registration or the process registration?
 
-import threading, time, sys, uuid, select, os, socket
+import threading, time, sys, uuid, select, os, socket, psutil
 import psycopg2, platform, netifaces
 from psycopg2.extensions import STATUS_BEGIN, STATUS_READY
 import read_configs
@@ -17,6 +17,9 @@ NAME 				= "facial-detection"
 REGISTER_STR 		= "SELECT * FROM insert_process_registration(%s,%s,%s);"
 HB_STR 				= "SELECT * FROM insert_process_hb(%s);"
 REGISTRATION_ID		= None
+RAM_USAGE 			= psutil.Process(os.getpid())
+
+# RAM_USAGE.memory_info().rss
 
 ###############					 REMOVE THE EXIT CONDITION !!!
 if __name__ == "__main__":
@@ -65,7 +68,7 @@ class db_heartbeat_thread(threading.Thread):
 			while self.connection.status == STATUS_READY:
 
 				if REGISTRATION_ID is not None:
-					curs.execute(HB_STR, (REGISTRATION_ID,))
+					curs.execute(HB_STR, (REGISTRATION_ID, ))
 					miss_count = 0
 				elif MISSED_HEARTBEAT_KILL < miss_count:
 					os.system('kill -9 %d' % PID)
