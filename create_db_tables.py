@@ -340,6 +340,14 @@ def create_stored_procedures(connection):
 		exit(-1)
 
 
+###############					 CREATE THE PROCESS CRONJOB CLEANUP FUNCTION !!!
+	try:
+		create_sql_from_file(file_content["files"]["process_cron_job_cleanup_function"], connection)
+	except Exception as e:
+		log_msg("Unable to create process cronjob cleanup function. {}".format(e))
+		exit(-1)
+
+
 def create_triggers(connection):
 	try:
 		file_content = read_configs.retrieve_config()
@@ -432,6 +440,32 @@ def create_triggers(connection):
 		exit(-1)
 
 
+def create_views(connection):
+	try:
+		file_content = read_configs.retrieve_config()
+	except Exception as e:
+		log_msg("Unable to read config file. {}".format(e))
+		exit(-1)
+
+
+
+###############					 CREATE THE NODE REGISTRATION DATA VIEW !!!	
+	try:
+		create_sql_from_file(file_content["files"]["node_registration_view"], connection)
+	except Exception as e:
+		log_msg("Unable to create node registration data view. {}".format(e))
+		exit(-1)
+
+
+###############					 CREATE THE PROCESS REGISTRATION DATA VIEW !!!	
+	try:
+		create_sql_from_file(file_content["files"]["process_registration_view"], connection)
+	except Exception as e:
+		log_msg("Unable to create process registration data view. {}".format(e))
+		exit(-1)
+
+
+
 
 if __name__ == "__main__":
 
@@ -450,6 +484,7 @@ if __name__ == "__main__":
 	create_tables(conn)
 	create_stored_procedures(conn)
 	create_triggers(conn)
+	create_views(conn)
 
 
 

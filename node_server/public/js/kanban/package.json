@@ -1,0 +1,49 @@
+{
+  "_from": "@xbs/kanban",
+  "_id": "@xbs/kanban@6.4.0",
+  "_inBundle": false,
+  "_integrity": "sha512-0thD8bSoocXrynoZw5O7FEw0NMDqccoNjUHANhMG8q+qTCzN6u1u6RzwcTXv9Hd/KiZxJ+lc51BmkxXNJkufqg==",
+  "_location": "/@xbs/kanban",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "@xbs/kanban",
+    "name": "@xbs/kanban",
+    "escapedName": "@xbs%2fkanban",
+    "scope": "@xbs",
+    "rawSpec": "",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://npm.webix.com/@xbs%2fkanban/-/kanban-6.4.0.tgz",
+  "_shasum": "662fdfc2afc9dd43302d3d4db605714d1b2146f1",
+  "_spec": "@xbs/kanban",
+  "_where": "/home/merc4christ/TomServo/workspace/test_app",
+  "author": {
+    "name": "XB Software"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Webix UI",
+  "keywords": [
+    "webix",
+    "ui",
+    "widgets"
+  ],
+  "license": "SEE LICENSE IN license.text",
+  "main": "kanban.js",
+  "name": "@xbs/kanban",
+  "publishConfig": {
+    "registry": "https://npm.webix.com"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "types": "types/kanban.d.ts",
+  "version": "6.4.0"
+}
