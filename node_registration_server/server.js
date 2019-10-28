@@ -154,12 +154,6 @@ app.post("/start/:name", (req, res) => {
 			return res.status(400).json({"err": err});
 		}
 
-		console.log("python psql_table.py " + req.params.name + " nohup &")
-		console.log(err, stdout, stderr)
-		// shuold show
-		// [2]    25763 killed     python3 psql_table.py
-		// console.log(stdout);
-
 
 		res.status(200).json({"result": "started"});
 

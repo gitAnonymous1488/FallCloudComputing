@@ -3,3 +3,14 @@ Anaconda
 psycopg2
 netifaces
 psutil
+
+
+config
+absolute path to python
+absolute path to node servers
+absolute paths to each config
+
+
+logs
+gitignore logs
+winston up the main server.js
