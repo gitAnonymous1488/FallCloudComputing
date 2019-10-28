@@ -1,0 +1,5 @@
+things to install
+Anaconda
+psycopg2
+netifaces
+psutil

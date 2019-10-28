@@ -193,7 +193,23 @@ app.get("/process_registration_table", (req, res) => {
 	});
 });
 
-app.use(express.static('public'))
+app.use(express.static('public'));
+
+// ############### PREVENT CORS ERRR ###############
+app.use(function(req, res, next){
+	res.header('Access-Control-Allow-Origin', '*');
+	res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE');
+	res.header('Access-Control-Allow-Headers', 'Accept, Authorization, Content-Type, X-Requested-With, Range');
+	next();
+});
+
+app.all('/', function(req, res, next) {
+	res.header("Access-Control-Allow-Origin", "*");
+	res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE');
+	res.header("Access-Control-Allow-Headers", "'Accept, Authorization, Content-Type, X-Requested-With, Range");
+	next();
+ });
+// ############### PREVENT CORS ERRR ###############
 
 // app.listen(port, () => {})
 http_server.listen(port);

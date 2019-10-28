@@ -74,6 +74,79 @@ ws.onclose = (e) => {
 	
 }
 
+let process_context_menu = {
+	view:"contextmenu",
+	id:"process_menu",
+	data:["Kill"],
+	on:{
+		onItemClick:function(id){
+			// console.log(this.getContext().id.row)
+			let selected_row = $$("process_registration_table").getItem(this.getContext().id.row);
+			if (!selected_row) return;
+
+			$.ajax({
+				url: "http://" + selected_row.process_ip + ":4001/kill/" + selected_row.process_pid,
+				type: "DELETE",
+				contentType: "application/text",
+				headers: {
+					// "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+					// "Access-Control-Allow-Headers": "x-requested-with",
+					// 'Access-Control-Allow-Origin': '*',
+				},
+				success: function(data, text) {
+
+					console.log(data, text);
+
+				}, error: function(request, status, error) {
+
+					console.log(request, status, error);
+
+				}
+			});     
+		}
+	},  
+};
+
+let node_context_menu = {
+	view:"contextmenu",
+	id:"node_menu",
+	data:[{
+		id:"1",value:"START",  
+		submenu:[ "image_processing", "facial-detection", "facial-recognition" ],
+		config:{
+			on: { 
+				onItemClick:function(id){
+					// console.log($$("node_menu").getContext());
+					// console.log(id);
+
+					let selected_row = $$("node_registration_table").getItem($$("node_menu").getContext().id.row);
+					if (!selected_row) return;
+
+					$.ajax({
+						url: "http://" + selected_row.node_ip_column + ":4001/start/" + id,
+						type: "POST",
+						contentType: "application/text",
+						headers: {
+							// "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+							// "Access-Control-Allow-Headers": "x-requested-with",
+							// 'Access-Control-Allow-Origin': '*',
+						},
+						success: function(data, text) {
+
+							console.log(data, text);
+
+						}, error: function(request, status, error) {
+
+							console.log(request, status, error);
+
+						}
+					});   
+				}
+			}
+		},
+	}], 
+};
+
 webix.ui({
 	rows:[
 		{gravity: 1, view: "label", label: "CLOUD COMPUTING PROJECT", align:"center"},
@@ -96,6 +169,7 @@ webix.ui({
 					], ready: function() { $$("prject_menu").select("dashboard"); }, on:{
 						onAfterSelect: function(id){
 							// webix.message("Selected: "+this.getItem(id).value)
+
 							$$("center_view_multi").setValue(id);
 						}
 					}
@@ -187,5 +261,8 @@ webix.ui({
 		}
 	]
 });
+
+webix.ui(node_context_menu).attachTo($$("node_registration_table"));
+webix.ui(process_context_menu).attachTo($$("process_registration_table"));
 
 // 2|29987|192.168.1.205|facial-detection|1572178039
