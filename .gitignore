@@ -2,3 +2,4 @@
 __pycache__/
 logs/*.log
 saved_imgs/*.jpg
+node_registration_server/combined.log
