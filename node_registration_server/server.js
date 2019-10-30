@@ -6,7 +6,7 @@
 */
 
 const winston = require('winston');
-const { exec } = require('child_process');
+const { spawn, exec } = require('child_process');
 const config_json = require("../config.json");
 
 const express = require('express');
@@ -148,11 +148,19 @@ app.post("/start/:name", (req, res) => {
 
 	logger.info('Start Request Came In For Name: ' + req.params.name);
 
-	exec("python ../psql_table.py " + req.params.name + " nohup &", (err, stdout, stderr) => {
+	spawn("python", ["psql_table.py", req.params.name, "nohup", "&"], {detached: true}).unref();
+	
+	res.status(200).json({"result": "started"});
+	logger.info('Start Request For Name: ' + req.params.pid + " Successful.");
+
+	/*
+	exec("python psql_table.py " + req.params.name + " nohup &", (err, stdout, stderr) => {
 		if (err) {
 			logger.error(err);
 			return res.status(400).json({"err": err});
 		}
+
+
 
 
 		res.status(200).json({"result": "started"});
@@ -160,6 +168,7 @@ app.post("/start/:name", (req, res) => {
 		// MAYBE GET PID OF THE PROCESS THAT STARTED
 		logger.info('Start Request For Name: ' + req.params.pid + " Successful.");
 	});
+	*/
 });
 
 app.delete("/kill/:pid", (req, res) => {
@@ -173,6 +182,13 @@ app.delete("/kill/:pid", (req, res) => {
 
 	logger.info('Kill Request Came In For PID: ' + req.params.pid);
 
+	/*
+	spawn("kill", ["-9", req.params.pid, "nohup", "&"], {detached: true}).unref();
+
+	res.status(200).json({"result": "killed"});
+	logger.info('Kill Request For PID: ' + req.params.pid + " Successful.");
+	*/
+	
 	exec("kill -9 " + req.params.pid, (err, stdout, stderr) => {
 		if (err) {
 			logger.error(err);
@@ -189,9 +205,8 @@ app.delete("/kill/:pid", (req, res) => {
 
 		logger.info('Kill Request For PID: ' + req.params.pid + " Successful.");
 	});
+	
 });
-
-
 
 
 app.listen(port, () => {});
