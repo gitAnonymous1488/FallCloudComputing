@@ -148,7 +148,7 @@ app.post("/start/:name", (req, res) => {
 
 	logger.info('Start Request Came In For Name: ' + req.params.name);
 
-	exec("python psql_table.py " + req.params.name + " nohup &", (err, stdout, stderr) => {
+	exec("python ../psql_table.py " + req.params.name + " nohup &", (err, stdout, stderr) => {
 		if (err) {
 			logger.error(err);
 			return res.status(400).json({"err": err});
@@ -190,6 +190,8 @@ app.delete("/kill/:pid", (req, res) => {
 		logger.info('Kill Request For PID: ' + req.params.pid + " Successful.");
 	});
 });
+
+
 
 
 app.listen(port, () => {});
