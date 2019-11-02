@@ -1,5 +1,6 @@
 const port = 3000;
 const config_json = require("../config.json");
+const fs = require("fs");
 
 
 const http = require('http');
@@ -8,10 +9,13 @@ const heartbeats = require('heartbeats');
 
 
 const express = require('express');
+var bodyParser = require("body-parser");
 const app = express();
 
 
 const hb_timer = 4000;
+
+const uuidv1 = require('uuid/v1');
 
 
 // ############### HEARTBEAT THE SERVER ###############
@@ -89,7 +93,8 @@ const db_config = {
 	"password": config_json.database_connections.password,
 	"host": config_json.database_connections.host,
 	"database": config_json.database_connections.database,
-	"port": config_json.database_connections.port
+	"port": config_json.database_connections.port,
+	max: 20,
 };
 
 const { Pool } = require('pg');
@@ -163,9 +168,9 @@ pool.connect((err, client, done) => {
 
 // ###############################################
 
-// http_server.listen(port);
 
-// app.get('/', (req, res) => res.send('Hello World!'));
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
 app.get("/node_registration_table", (req, res) => {
 	pool.connect((err, client, done) => {
@@ -190,6 +195,46 @@ app.get("/process_registration_table", (req, res) => {
 
 			res.status(200).json(result.rows);
 		});
+	});
+});
+
+app.post("/user_submission", (req, res) => {
+	// console.log(req.body);
+
+	if (!req.body.photo) {
+		return res.status(404).json({"err": "Did not pass in photo."});
+		// return logger.error("Did not pass in photo.");
+	}
+
+	if (!req.body.photo_name) {
+		return res.status(404).json({"err": "Did not pass in photo name."});
+		// return logger.error("Did not pass in photo name.");
+	}
+
+	// logger.info('Submission Came In (NAME): ' + req.body.photo_name);
+
+	let file_name = __dirname.replace("node_server", "") + "saved_imgs/";
+	file_name += req.body.photo_name.replace(".jpg", "");
+	file_name +=  ("_" + Math.floor(new Date().getTime() / 1000) + ".jpg");
+	let b64_photo = new Buffer.from(req.body.photo, 'base64');
+
+	fs.writeFile(file_name, b64_photo, (err) => {
+	    // throws an error, you could also catch it here
+	    if (err) throw err;
+
+	    // res.status(200).json({"result": "got it"});
+
+	    pool.connect((err, client, done) => {
+	    	if (err) throw err;
+	    	
+	    	let query = "SELECT * FROM user_submision_insert($1,$2);"
+	    	client.query(query, [uuidv1(), file_name],(err, result) => {
+	    		done();
+	    		if (err) throw err;
+
+	    		res.status(200).json(result.rows);
+	    	});
+	    });
 	});
 });
 

@@ -193,7 +193,7 @@ def create_tables(connection):
 	submission_table_name 		= file_content["remove_db_configuration"]["user_submission_name"]
 	submission_table_columns	= file_content["remove_db_configuration"]["user_submission_table"]
 	submission_table_dtypes		= file_content["remove_db_configuration"]["user_submission_dtypes"]
-	submission_combined			= zip_cols_together(process_reg_columns, process_reg_dtypes)
+	submission_combined			= zip_cols_together(submission_table_columns, submission_table_dtypes)
 
 	try:
 		create_table_sql(connection, submission_table_name, submission_combined)
