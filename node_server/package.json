@@ -6,6 +6,11 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "node_deb": {
+    "entrypoints": {
+      "daemon": "server.js"
+    }
+  },
   "author": "Group 9",
   "license": "ISC",
   "dependencies": {
