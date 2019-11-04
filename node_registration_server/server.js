@@ -5,9 +5,11 @@
 
 */
 
-const winston = require('winston');
+// const winston = require('winston');
+const {transports, createLogger, format} = require('winston');
 const { spawn, exec } = require('child_process');
-const config_json = require("../config.json");
+const config_json = require("./config.json");
+const util = require('util');
 
 const express = require('express');
 const app = express();
@@ -19,25 +21,30 @@ var NODE_REG_ID = null;
 
 
 // CONFIG ENTRIES
-const port = 4001;
-const hb_timer = 2000;
-const log_file = "combined.log";
+const port        = config_json.node_registration_info.port;
+const hb_timer    = config_json.node_registration_info.heartbeat_timer;
+const log_file    = config_json.node_registration_info.logging_file;
 
-
+// ALLOW DYNAMIC CHANGES TO SOME SETTINGS
+let heartbeat_log = config_json.node_registration_info.logging_settings.heartbeat;
 
 const ACCEPTABLE_PROCESS_NAMES 	= ["image_processing", "facial-detection", "facial-recognition"];
 
-
 // ############### PREVENT CORS ERRR ###############
-const logger = winston.createLogger({
-  level: 'info',
-  transports: [
-    new winston.transports.File({ filename: log_file })
-  ]
+const logger = createLogger({
+	level: 'debug',
+	format: format.combine(
+		format.timestamp(),
+		format.json(),
+		format.printf(info => "[" + info.timestamp + "][" + info.level.padStart(8, " ") + "] --- " + info.message.padEnd(100, " "))
+	),
+	transports: [
+		new transports.File({ filename: log_file, 'timestamp':true })
+	]
 });
 // ############### PREVENT CORS ERRR ###############
 
-logger.info('Process PID: ' + process.pid);
+logger.debug(util.format('%s (%s)', ('Process PID: ' + process.pid).padEnd(80, " "), "BASE"));
 
 // ############### PREVENT CORS ERRR ###############
 app.use(function(req, res, next){
@@ -58,18 +65,19 @@ app.all('/', function(req, res, next) {
 
 // ############### PG CONNECTION SETTINGS ###############
 const db_config = {
-	"user": config_json.database_connections.user,
-	"password": config_json.database_connections.password,
-	"host": config_json.database_connections.host,
-	"database": config_json.database_connections.database,
-	"port": config_json.database_connections.port
+	"user": 		config_json.database_connections.user,
+	"password": 	config_json.database_connections.password,
+	"host": 		config_json.database_connections.host,
+	"database": 	config_json.database_connections.database,
+	"port": 		config_json.database_connections.port
 };
 
 const { Pool } = require('pg');
 const pool = new Pool(db_config);
 
 pool.on('error', (err, client) => {
-	console.error('Unexpected error on idle client', err);
+	logger.error(util.format('%s (%s)', ("PG Pool received an error.").padEnd(80, " "), "BASE"));
+	logger.error(util.format('%s (%s)', (err).padEnd(80, " "), "BASE"));
 	process.exit(-1);
 });
 
@@ -80,27 +88,24 @@ pool.on('error', (err, client) => {
 // ############### REGISTER THE NODE ON STARTUP ###############
 pool.connect((err, client, done) => {
 	if (err) {
-		logger.error(err);
+		logger.error(util.format('%s (%s)', ("Unable to connect to DB through the pool for insert_node_registration.").padEnd(80, " "), "BASE"));
+		logger.error(util.format('%s (%s)', (err).padEnd(80, " "), "BASE"));
 		process.exit(1);
 	}
 
-	logger.info('opening registration connection to main node.');
-
-	ip.address();
+	logger.debug(util.format('%s (%s)', ("Opening registration connection to main node.").padEnd(80, " "), "BASE"));
 	
 	client.query("SELECT * FROM insert_node_registration($1);", [ip.address()], (err, res) => {
 		done();
 
 		if (err) {
-			logger.error(err);
+			logger.error(util.format('%s (%s)', ("Unable to perform insert_node_registration").padEnd(80, " "), "BASE"));
+			logger.error(util.format('%s (%s)', (err).padEnd(80, " "), "BASE"));
 			process.exit(1);
 		}
 
-		// Maybe log the err
-		logger.info('Registered with main node.');
+		logger.debug(util.format('%s (%s)', ("Registered with main node.").padEnd(80, " "), "BASE"));
 		NODE_REG_ID = res.rows[0].insert_node_registration;
-
-		// log the registration
 	});
 });
 // ############### REGISTER THE NODE ON STARTUP ###############
@@ -113,22 +118,27 @@ heart.createEvent(1, function(count, last){
 	pool.connect((err, client, done) => {
 
 		if (err) {
-			logger.error(err);
+			logger.error(util.format('%s (%s)', ("Unable to connect to DB through the pool for insert_node_hb.").padEnd(80, " "), "NODE HEARTBEAT"));
+			logger.error(util.format('%s (%s)', (err).padEnd(80, " "), "BASE"));
 			process.exit(1);
 		}
 
 		// Make this log an error
-		if (NODE_REG_ID == null) throw err;
+		if (NODE_REG_ID == null) {
+			logger.error(util.format('%s (%s)', ("NODE_REG_ID has not been registered and is null.").padEnd(80, " "), "NODE HEARTBEAT"));
+			process.exit(1);
+		}
 
 		client.query("SELECT * FROM insert_node_hb($1);", [NODE_REG_ID], (err, res) => {
 			done();
 
 			if (err) {
-				logger.error(err);
+				logger.error(util.format('%s (%s)', ("Unable to perform insert_node_hb").padEnd(80, " "), "NODE HEARTBEAT"));
+				logger.error(util.format('%s (%s)', (err).padEnd(80, " "), "NODE HEARTBEAT"));
 				process.exit(1);
 			}
 
-			logger.info('Heartbeat Registered.');
+			if (heartbeat_log) logger.debug(util.format('%s (%s)', ("Node Heartbeat Registered.").padEnd(80, " "), "NODE HEARTBEAT"));
 		});
 	});
 });
@@ -136,39 +146,32 @@ heart.createEvent(1, function(count, last){
 
 
 app.post("/start/:name", (req, res) => {
+	let request_ip = req.connection.remoteAddress.split(":")[-1];
+
 	if (!req.params.name) {
-		res.status(404).json({"err": "Did not pass in name."});
-		return logger.error("Did not pass in name.");
+		res.status(404).json({"err": "Request Did Not Include Step Name."});
+		return logger.error(util.format('%s [%s](%s)', ("Request Did Not Include Step Name.").padEnd(65, " "), request_ip, "/start"));
 	}
 
 	if (!ACCEPTABLE_PROCESS_NAMES.includes(req.params.name)) {
-		res.status(404).json({"err": "Not a valid process name."});
-		return logger.error("Not a valid process name.");
+		res.status(404).json({"err": "Request Did Not Include A Valid Process Name."});
+		return logger.error(util.format('%s [%s](%s)', ("Request Did Not Include A Valid Process Name.").padEnd(65, " "), request_ip, "/start"));
 	}
 
-	logger.info('Start Request Came In For Name: ' + req.params.name);
+	logger.debug(util.format('%s (%s)', ("Starting Request Came In For Name:" + req.params.name).padEnd(80, " "), "/start"));
 
-	spawn("python", ["psql_table.py", req.params.name, "nohup", "&"], {detached: true}).unref();
+	// start the process
+	logger.debug(util.format('%s (%s)', (["../python_process/python_process.py", req.params.name, "nohup", "&"].join(" ")).padEnd(80, " "), "/start"));
+	let subproc = spawn("python", ["../python_process/python_process.py", req.params.name, "nohup", "&"], {detached: true});
+	let subproc_pid = subproc.pid;
+
+	// detach the subprocess
+	subproc.unref();
+	logger.debug(util.format('%s (%s)', ("PID: " + subproc_pid + " Successful.").padEnd(80, " "), "/start"));
 	
+	// send the response
 	res.status(200).json({"result": "started"});
-	logger.info('Start Request For Name: ' + req.params.pid + " Successful.");
 
-	/*
-	exec("python psql_table.py " + req.params.name + " nohup &", (err, stdout, stderr) => {
-		if (err) {
-			logger.error(err);
-			return res.status(400).json({"err": err});
-		}
-
-
-
-
-		res.status(200).json({"result": "started"});
-
-		// MAYBE GET PID OF THE PROCESS THAT STARTED
-		logger.info('Start Request For Name: ' + req.params.pid + " Successful.");
-	});
-	*/
 });
 
 app.delete("/kill/:pid", (req, res) => {
@@ -181,13 +184,6 @@ app.delete("/kill/:pid", (req, res) => {
 	}
 
 	logger.info('Kill Request Came In For PID: ' + req.params.pid);
-
-	/*
-	spawn("kill", ["-9", req.params.pid, "nohup", "&"], {detached: true}).unref();
-
-	res.status(200).json({"result": "killed"});
-	logger.info('Kill Request For PID: ' + req.params.pid + " Successful.");
-	*/
 	
 	exec("kill -9 " + req.params.pid, (err, stdout, stderr) => {
 		if (err) {

@@ -1,12 +1,4 @@
 {
-	"node_registration_info": {
-		"port": 4001,
-		"heartbeat_timer": 2000,
-		"logging_file": "combined.log",
-		"logging_settings": {
-			"heartbeat": false
-		}
-	},
 	"database_connections": {
 		"host": "127.0.0.1",
 		"database": "cloud_computing_project",

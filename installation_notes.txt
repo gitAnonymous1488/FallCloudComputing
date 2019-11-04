@@ -14,3 +14,5 @@ absolute paths to each config
 logs
 gitignore logs
 winston up the main server.js
+
+BASE will always be opt
