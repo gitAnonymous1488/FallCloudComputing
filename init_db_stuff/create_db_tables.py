@@ -439,6 +439,19 @@ def create_triggers(connection):
 		log_msg("Unable to create after process heartbeat trigger. {}".format(e))
 		exit(-1)
 
+	###############					 CREATE THE AFTER INSERT USER_SUBMISSION!!!
+	try:
+		create_sql_from_file(file_content["files"]["user_submission_function"], connection)
+	except Exception as e:
+		log_msg("Unable to create after user submission trigger function. {}".format(e))
+		exit(-1)
+
+	try:
+		create_sql_from_file(file_content["files"]["user_submission_trigger"], connection)
+	except Exception as e:
+		log_msg("Unable to create after user submission trigger. {}".format(e))
+		exit(-1)
+
 
 def create_views(connection):
 	try:

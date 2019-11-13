@@ -5,7 +5,7 @@
 		"initialize_db": "postgres",
 		"user": "postgres",
 		"password": "...",
-		"channel": "channel",
+		"channel": "submission_job",
 		"port": "5432"
 	},
 	"database_configuration": {
@@ -86,7 +86,8 @@
 		"process_registration_view": "sql_files/process_registration_data_view.sql"
 	},
 	"logging_files": {
-		"create_db_logging": "logs/create_db.log"
+		"create_db_logging": "logs/create_db.log",
+		"python_process_logging": "logs/process_{}.log"
 	},
 	"remove_db_configuration": {
 		"user_submission_name": "user_submision_table",

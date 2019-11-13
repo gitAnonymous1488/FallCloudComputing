@@ -161,7 +161,7 @@ app.post("/start/:name", (req, res) => {
 	logger.debug(util.format('%s (%s)', ("Starting Request Came In For Name:" + req.params.name).padEnd(80, " "), "/start"));
 
 	// start the process
-	logger.debug(util.format('%s (%s)', (["../python_process/python_process.py", req.params.name, "nohup", "&"].join(" ")).padEnd(80, " "), "/start"));
+	logger.debug(util.format('%s (%s)', (["python", "../python_process/python_process.py", req.params.name, "nohup", "&"].join(" ")).padEnd(80, " "), "/start"));
 	let subproc = spawn("python", ["../python_process/python_process.py", req.params.name, "nohup", "&"], {detached: true});
 	let subproc_pid = subproc.pid;
 

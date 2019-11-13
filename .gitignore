@@ -1,6 +1,6 @@
 .DS_Store
 __pycache__/
-logs/*.log
+python_process/logs/*.log
 saved_imgs/*.jpg
 node_registration_server/combined.log
 saved_imgs/*.jpg

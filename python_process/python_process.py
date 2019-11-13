@@ -1,16 +1,23 @@
-# What is this going to be? The node registration or the process registration?
-
-import threading, time, sys, uuid, select, os, socket, psutil
-import psycopg2, platform, netifaces
+import threading, time, sys, uuid, select, os, socket, logging, json
+import psycopg2, platform, netifaces, psutil
 from psycopg2.extensions import STATUS_BEGIN, STATUS_READY
 import read_configs
+
+# So it doesnt matter where it is called from, It will run under its own
+os.chdir(os.path.dirname(__file__))
 
 # TODO: PUT THIS IN THE CONFIG
 SELECT_TIMEOUT 				= 6
 HEARTBEAT_SLEEP 			= 1
 MISSED_HEARTBEAT_KILL 		= 2
 ACCEPTABLE_PROCESS_NAMES 	= ["image_processing", "facial-detection", "facial-recognition"]
+READY 						= 0
+BUSY 						= 1
+DEBUG_IMG_PROC_LOG 			= True
 # 
+
+if not os.path.exists("logs"):
+	os.mkdir("logs")
 
 try:
 	HOST_IP 			= netifaces.ifaddresses('enp0s31f6')[2][0]["addr"]
@@ -48,6 +55,16 @@ CONN_STR = "dbname={dbname} user={dbuser} password={dbpass} host={host}"
 
 if __name__ == "__main__":
 	FRMT_CONN_STR = CONN_STR.format(dbname=DBNAME,dbuser=USER,dbpass=PASS,host=HOST)
+
+
+try:
+	log_file = os.path.dirname(__file__) + os.sep + file_content["logging_files"]["python_process_logging"].format(PID)
+	logging.basicConfig(filename=log_file,  format='%(asctime)s %(message)s', filemode='w') 
+except Exception as e:
+	print(e)
+	exit()
+
+LOGGER = logging.getLogger()
 
 
 class db_heartbeat_thread(threading.Thread):
@@ -101,6 +118,7 @@ class db_process_thread(threading.Thread):
 
 		self.curs = None
 		self.uuid = uuid.uuid4()
+		self.state = 0
 
 		self.register()
 
@@ -120,6 +138,7 @@ class db_process_thread(threading.Thread):
 
 
 	def run(self):
+		global LOGGER, STATE
 		if self.connection.status != STATUS_READY:
 			return None
 
@@ -131,16 +150,100 @@ class db_process_thread(threading.Thread):
 				self.connection.poll()
 				while self.connection.notifies:
 					notif = self.connection.notifies.pop(0)
-					print("Got NOTIFY: PID: {}, CHANNEL: {}, PAYLOAD: {}".format( notif.pid, notif.channel, notif.payload))
-					self.recvCallback(notif)
+					LOGGER.debug("Got NOTIFY: PID: {}, CHANNEL: {}, PAYLOAD: {}".format( notif.pid, notif.channel, notif.payload))
+					# print("Got NOTIFY: PID: {}, CHANNEL: {}, PAYLOAD: {}".format( notif.pid, notif.channel, notif.payload))
+					if self.state == READY:
+						self.set_state(BUSY)
+						self.receive_callback(notif)
+						self.set_state(READY)
 
 		self.curs.close()
 		self.curs = None
 
 
-	def recvCallback(self, notification):
+	def receive_callback(self, notification):
+		global LOGGER, NAME
+
 		if notification.payload:
-			print("callback: ", notification.payload)
+
+			LOGGER.debug("RUNNING TASK")
+
+			payload = None
+
+			try:
+				payload = json.loads(notification.payload)
+			except Exception as e:
+				LOGGER.error("Unable to convert notification payload string to JSON")
+				LOGGER.error(notification.payload)
+				LOGGER.error(e)
+
+			if payload["table"] == "user_submission_table" and NAME == "image_processing":
+
+				contents, altered_img_path = None, None
+
+				with self.connection.cursor() as curs:
+					
+					try:
+						curs.execute("SELECT * FROM user_submission_retrieve(%s);", (payload["job_id"], ))
+						contents = curs.fetchone()
+					except Exception as e:
+						LOGGER.error("Unable to perform user_submission_retrieve.")
+						LOGGER.error(e)
+
+				if DEBUG_IMG_PROC_LOG: LOGGER.debug("Retrieved user_submission_retrieve contents")
+				if DEBUG_IMG_PROC_LOG: LOGGER.debug(contents)
+
+				if contents is None or len(contents) != 4:
+					LOGGER.error("Something is wrong with the user_submission_retrieve return result")
+					LOGGER.error(contents)
+					return
+
+				if DEBUG_IMG_PROC_LOG: LOGGER.debug("About to start image_processing.")
+
+				altered_img_path = img_processing(contents)
+
+				if DEBUG_IMG_PROC_LOG: LOGGER.debug("Finished Image Processing.")
+
+				if altered_img_path is None:
+					LOGGER.error("Did Not Receive the altered image path.")
+					return
+
+				if DEBUG_IMG_PROC_LOG: LOGGER.debug("altered_img_path = {}".format(altered_img_path))
+
+				with self.connection.cursor() as curs:
+					
+					try:
+						curs.execute("SELECT * FROM image_processing_insert(%s,%s,%s);", (contents[1], contents[2], altered_img_path))
+						contents = curs.fetchone()
+					except Exception as e:
+						LOGGER.error("Unable to perform image_processing_insert.")
+						LOGGER.error(e)
+
+				if DEBUG_IMG_PROC_LOG: LOGGER.debug("Finished Inserting into image_processing_insert.")
+
+			# elif NAME == "facial-detection":
+			# 	pass
+			# elif NAME == "facial-recognition":
+			# 	pass
+
+			LOGGER.debug("FINISHED TASK")
+
+
+			return
+
+	def set_state(self, state):
+		self.state = state
+
+# I WANT TO THREAD THIS
+def img_processing(photo_path, obj):
+	global LOGGER
+	
+	# LOGGER.debug("Got NOTIFY: PID: {}, CHANNEL: {}, PAYLOAD: {}".format( notif.pid, notif.channel, notif.payload))
+
+	time.sleep(2)
+
+	return "new_path"
+
 
 
 
@@ -154,7 +257,8 @@ if __name__ == "__main__":
 	if not NAME in ACCEPTABLE_PROCESS_NAMES:
 		exit("Not a valid process name")
 
-	# os.system('kill %d' % os.getpid())
+	LOGGER.setLevel(logging.DEBUG)
+	LOGGER.debug("STARTING PROCESS WITH NAME: {}".format( NAME ))
 
 	db_thread = db_process_thread()
 	db_thread.start()

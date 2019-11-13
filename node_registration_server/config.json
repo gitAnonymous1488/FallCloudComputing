@@ -94,7 +94,8 @@
 		"process_registration_view": "sql_files/process_registration_data_view.sql"
 	},
 	"logging_files": {
-		"create_db_logging": "logs/create_db.log"
+		"create_db_logging": "logs/create_db.log",
+		"testing": "testing"
 	},
 	"remove_db_configuration": {
 		"user_submission_name": "user_submision_table",
