@@ -15,7 +15,7 @@ const app = express();
 
 const hb_timer = 4000;
 
-const uuidv1 = require('uuid/v1');
+const uuidv4 = require('uuid/v4');
 
 
 // ############### HEARTBEAT THE SERVER ###############
@@ -100,71 +100,32 @@ const db_config = {
 const { Pool } = require('pg');
 const pool = new Pool(db_config);
 
+function pg_notify_channels(channel) {
+	pool.connect((err, client, done) => {
+		if (err) throw err;
+
+		client.on('notification', function(msg) {
+
+			broadcast_msg(JSON.stringify(msg));
+		});
+		
+		var query = client.query("LISTEN " + channel + ";");
+	});
+}
+
 pool.on('error', (err, client) => {
 	console.error('Unexpected error on idle client', err)
 	process.exit(-1)
 });
 
-pool.connect((err, client, done) => {
-	if (err) throw err;
-
-	client.on('notification', function(msg) {
-
-		broadcast_msg(JSON.stringify(msg));
-	});
-	
-	var query = client.query("LISTEN delete_node_event");
-});
-
-pool.connect((err, client, done) => {
-	if (err) throw err;
-
-	client.on('notification', function(msg) {
-		broadcast_msg(JSON.stringify(msg));
-	});
-	
-	var query = client.query("LISTEN new_node_heartbeat_event");
-});
-
-pool.connect((err, client, done) => {
-	if (err) throw err;
-
-	client.on('notification', function(msg) {
-		broadcast_msg(JSON.stringify(msg));
-	});
-	
-	var query = client.query("LISTEN new_node_event");
-});
-
-pool.connect((err, client, done) => {
-	if (err) throw err;
-
-	client.on('notification', function(msg) {
-		broadcast_msg(JSON.stringify(msg));
-	});
-	
-	var query = client.query("LISTEN delete_process_event");
-});
-
-pool.connect((err, client, done) => {
-	if (err) throw err;
-
-	client.on('notification', function(msg) {
-		broadcast_msg(JSON.stringify(msg));
-	});
-	
-	var query = client.query("LISTEN new_process_heartbeat_event");
-});
-
-pool.connect((err, client, done) => {
-	if (err) throw err;
-
-	client.on('notification', function(msg) {
-		broadcast_msg(JSON.stringify(msg));
-	});
-	
-	var query = client.query("LISTEN new_process_event");
-});
+pg_notify_channels("delete_node_event");
+pg_notify_channels("new_node_heartbeat_event");
+pg_notify_channels("new_node_event");
+pg_notify_channels("delete_process_event");
+pg_notify_channels("new_process_heartbeat_event");
+pg_notify_channels("new_process_heartbeat_event");
+pg_notify_channels("new_process_event");
+pg_notify_channels("process_update");
 
 // ###############################################
 
@@ -228,7 +189,7 @@ app.post("/user_submission", (req, res) => {
 	    	if (err) throw err;
 	    	
 	    	let query = "SELECT * FROM user_submision_insert($1,$2);"
-	    	client.query(query, [uuidv1(), file_name],(err, result) => {
+	    	client.query(query, [uuidv4(), file_name],(err, result) => {
 	    		done();
 	    		if (err) throw err;
 
@@ -258,3 +219,77 @@ app.all('/', function(req, res, next) {
 
 // app.listen(port, () => {})
 http_server.listen(port);
+
+
+/*
+pool.connect((err, client, done) => {
+	if (err) throw err;
+
+	client.on('notification', function(msg) {
+
+		broadcast_msg(JSON.stringify(msg));
+	});
+	
+	var query = client.query("LISTEN delete_node_event");
+});
+
+pool.connect((err, client, done) => {
+	if (err) throw err;
+
+	client.on('notification', function(msg) {
+		broadcast_msg(JSON.stringify(msg));
+	});
+	
+	var query = client.query("LISTEN new_node_heartbeat_event");
+});
+
+pool.connect((err, client, done) => {
+	if (err) throw err;
+
+	client.on('notification', function(msg) {
+		broadcast_msg(JSON.stringify(msg));
+	});
+	
+	var query = client.query("LISTEN new_node_event");
+});
+
+pool.connect((err, client, done) => {
+	if (err) throw err;
+
+	client.on('notification', function(msg) {
+		broadcast_msg(JSON.stringify(msg));
+	});
+	
+	var query = client.query("LISTEN delete_process_event");
+});
+
+pool.connect((err, client, done) => {
+	if (err) throw err;
+
+	client.on('notification', function(msg) {
+		broadcast_msg(JSON.stringify(msg));
+	});
+	
+	var query = client.query("LISTEN new_process_heartbeat_event");
+});
+
+pool.connect((err, client, done) => {
+	if (err) throw err;
+
+	client.on('notification', function(msg) {
+		broadcast_msg(JSON.stringify(msg));
+	});
+	
+	var query = client.query("LISTEN new_process_event");
+});
+
+pool.connect((err, client, done) => {
+	if (err) throw err;
+
+	client.on('notification', function(msg) {
+		broadcast_msg(JSON.stringify(msg));
+	});
+	
+	var query = client.query("LISTEN process_update");
+});
+*/

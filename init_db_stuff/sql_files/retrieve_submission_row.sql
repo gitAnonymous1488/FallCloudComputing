@@ -9,7 +9,7 @@ BEGIN
 
 	RETURN QUERY 
 	DELETE FROM user_submision_table ust
-	WHERE ust.job_id in (SELECT MAX(sust.job_id) FROM user_submision_table sust)
+	WHERE ust.job_id in (SELECT MIN(sust.job_id) FROM user_submision_table sust)
 	RETURNING *;
 
 END;

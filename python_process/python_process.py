@@ -13,7 +13,9 @@ MISSED_HEARTBEAT_KILL 		= 2
 ACCEPTABLE_PROCESS_NAMES 	= ["image_processing", "facial-detection", "facial-recognition"]
 READY 						= 0
 BUSY 						= 1
+STATE_TRANSLATION 			= {READY: "READY", BUSY: "BUSY"}
 DEBUG_IMG_PROC_LOG 			= True
+UPDATE_CHANNEL 				= "process_update"
 # 
 
 if not os.path.exists("logs"):
@@ -104,7 +106,7 @@ class db_heartbeat_thread(threading.Thread):
 
 
 class process_stuff_thread(threading.Thread):
-	def __init__(self, parent_obj, payload):
+	def __init__(self, callback, payload):
 		threading.Thread.__init__(self)
 
 		try:
@@ -114,7 +116,7 @@ class process_stuff_thread(threading.Thread):
 			exit("You CANNOT Connect To The DB. {}".format(e))
 
 		self.uuid = uuid.uuid4()
-		self.parent_obj = parent_obj
+		self.callback = callback
 		self.payload = payload
 
 
@@ -123,7 +125,7 @@ class process_stuff_thread(threading.Thread):
 
 
 	def run(self):
-		global LOGGER, NAME
+		global LOGGER, NAME, UPDATE_CHANNEL, PID
 
 		err = None
 
@@ -166,11 +168,40 @@ class process_stuff_thread(threading.Thread):
 						err = "Something is wrong with the user_submission_retrieve return result"
 						break
 
+					# NOTIFY EVERYONE THAT YOU HAVE STARTED PROCESSING THE INFORMATION
+					# msg = {
+					# 	"update": "start_job", "pid": PID, "job_id": contents[1], "name": NAME
+					# }
+
+					# msg = """ {"update": "state_update", "pid": {}, "job_id": {}, "name": "{}" } """.format( PID, contents[1], NAME )
+					with self.connection.cursor() as curs:
+						try:
+							msg = {
+								"channel": UPDATE_CHANNEL, "update": "start_job", "registration_id": REGISTRATION_ID,
+								"pid": PID, "job_id": contents[1], "name": NAME
+							}
+							curs.execute("SELECT pg_notify(%s, %s);", (UPDATE_CHANNEL, json.dumps(msg)))
+						except Exception as e:
+							LOGGER.error("Unable to notify the state update.")
+							LOGGER.error(e)
+
 					if DEBUG_IMG_PROC_LOG: LOGGER.debug("About to start image_processing.")
 
 					altered_img_path = img_processing(contents[2])
 
 					if DEBUG_IMG_PROC_LOG: LOGGER.debug("Finished Image Processing.")
+
+					with self.connection.cursor() as curs:
+						try:
+							msg = {
+								"channel": UPDATE_CHANNEL, "update": "finnish_job", "registration_id": REGISTRATION_ID,
+								"pid": PID, "job_id": contents[1], "name": NAME
+							}
+							curs.execute("SELECT pg_notify(%s, %s);", (UPDATE_CHANNEL, json.dumps(msg)))
+							# self.connection.commit()
+						except Exception as e:
+							LOGGER.error("Unable to notify the state update.")
+							LOGGER.error(e)
 
 					if altered_img_path is None:
 						LOGGER.error("Did Not Receive the altered image path.")
@@ -198,7 +229,10 @@ class process_stuff_thread(threading.Thread):
 			# 	pass
 
 			LOGGER.debug("FINISHED TASK")
-			self.parent_obj.set_state(READY)
+			self.callback(READY)
+			# self.parent_obj.set_state(READY)
+
+			# NOTIFY EVERYONE THAT YOU HAVE STARTED PROCESSING THE INFORMATION
 
 			return
 
@@ -238,7 +272,7 @@ class db_process_thread(threading.Thread):
 
 
 	def run(self):
-		global LOGGER, STATE
+		global LOGGER, STATE, PID
 		if self.connection.status != STATUS_READY:
 			return None
 
@@ -253,8 +287,12 @@ class db_process_thread(threading.Thread):
 					LOGGER.debug("Got NOTIFY: PID: {}, CHANNEL: {}, PAYLOAD: {}".format( notif.pid, notif.channel, notif.payload))
 					# print("Got NOTIFY: PID: {}, CHANNEL: {}, PAYLOAD: {}".format( notif.pid, notif.channel, notif.payload))
 					if self.state == READY:
+						def set_state(state):
+							self.set_state(state)
+
 						self.set_state(BUSY)
-						process_thread = process_stuff_thread(self, notif.payload)
+
+						process_thread = process_stuff_thread(set_state, notif.payload)
 						# process_thread.set_payload(notif)
 						process_thread.start()
 						self.child_thread_list.append(process_thread)
@@ -266,13 +304,27 @@ class db_process_thread(threading.Thread):
 
 
 	def set_state(self, state):
+		global REGISTRATION_ID
 		self.state = state
+
+		with self.connection.cursor() as curs:
+			try:
+				msg = {
+					"channel": UPDATE_CHANNEL, "update": "state_update", "registration_id": REGISTRATION_ID,
+					"pid": PID, "state": STATE_TRANSLATION[state], "name": NAME
+				}
+				curs.execute("SELECT pg_notify(%s, %s);", (UPDATE_CHANNEL, json.dumps(msg)))
+				# self.connection.commit()
+			except Exception as e:
+				LOGGER.error("Unable to notify the state update.")
+				LOGGER.error(e)
+
 
 # I WANT TO THREAD THIS
 def img_processing(photo_path):
 	global LOGGER
 	if DEBUG_IMG_PROC_LOG: LOGGER.debug("Processing...")
-	time.sleep(20)
+	time.sleep(10)
 	if DEBUG_IMG_PROC_LOG: LOGGER.debug("Processing...")
 	return "new_path"
 

@@ -14,8 +14,6 @@ ws.onmessage = (e) => {
 	// new_node_event
 	let data = JSON.parse(e.data);
 
-	// console.log(data);
-
 	if (!data.hasOwnProperty('channel') || !data.hasOwnProperty("payload"))
 		return;
 
@@ -63,6 +61,35 @@ ws.onmessage = (e) => {
 		
 		update_row.last_heartbeat_time = res[1];
 		$$("process_registration_table").updateItem(res[0], update_row);
+	}
+
+	if (data.channel == "process_update") {
+		// console.log(data)
+		let json_data = null;
+
+		try {
+			json_data = JSON.parse(data.payload)
+		} catch (e) {
+			console.log("Could not parse incoming process_update msg")
+			return;
+		}
+
+		console.log(json_data)
+
+		let update_row = $$("process_registration_table").getItem(json_data.registration_id);
+
+		if (json_data.hasOwnProperty("state"))
+			update_row.process_state = json_data.state;
+
+		if (json_data.hasOwnProperty("update")) {
+			if (json_data.update == "start_job")
+				update_row.process_job_id = json_data.job_id;
+			else if (json_data.update == "finnish_job")
+				update_row.process_job_id = "-";
+		} 
+		// update_row 
+
+		// console.log(json_data)
 	}
 }
 
@@ -221,13 +248,17 @@ webix.ui({
 								{
 									id:"id", header:"#", width:40, sort:"int", tooltip:false
 								}, {
-									id:"process_pid", header:"Process PID", width:200, tooltip:false
+									id:"process_pid", header:"Process PID", width:75, tooltip:false
 								}, {
-									id:"process_ip", header:"Process IP", width:200, tooltip:false
+									id:"process_ip", header:"Process IP", width:125, tooltip:false
 								}, {
-									id:"process_name", header:"Process Name", width:200, tooltip:false
+									id:"process_name", header:"Process Name", width:175, tooltip:false
 								}, {
-									id:"last_heartbeat_time", header:"Last Node Heartbeat Time", width:200, tooltip:false
+									id:"process_state", header:"Process State", width:100, tooltip:false
+								}, {
+									id:"process_job_id", header:"Currently Processing", width:350, tooltip:false
+								},{
+									id:"last_heartbeat_time", header:"Last Node Heartbeat Time", width:175, tooltip:false
 								}
 							], data: [],
 							ready: function() {
@@ -243,7 +274,9 @@ webix.ui({
 												id: a.process_registration_id, 
 												process_pid: a.process_pid, 
 												process_ip: a.process_host_ip, 
-												process_name: a.process_name, 
+												process_name: a.process_name,
+												process_state: "READY",
+												process_job_id: "-",
 												last_heartbeat_time: a.process_heartbeat_time
 											})
 										});
