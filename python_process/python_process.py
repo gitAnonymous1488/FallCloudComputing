@@ -66,7 +66,6 @@ except Exception as e:
 
 LOGGER = logging.getLogger()
 
-
 class db_heartbeat_thread(threading.Thread):
 	def __init__(self):
 		threading.Thread.__init__(self)
@@ -104,9 +103,109 @@ class db_heartbeat_thread(threading.Thread):
 				time.sleep(HEARTBEAT_SLEEP)
 
 
+class process_stuff_thread(threading.Thread):
+	def __init__(self, parent_obj, payload):
+		threading.Thread.__init__(self)
+
+		try:
+			self.connection = psycopg2.connect(FRMT_CONN_STR)
+			self.connection.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+		except Exception as e:
+			exit("You CANNOT Connect To The DB. {}".format(e))
+
+		self.uuid = uuid.uuid4()
+		self.parent_obj = parent_obj
+		self.payload = payload
+
+
+	def set_payload(self, payload):
+		self.payload = payload
+
+
+	def run(self):
+		global LOGGER, NAME
+
+		err = None
+
+		if self.payload:
+
+			LOGGER.debug("RUNNING TASK")
+
+			payload = None
+
+			try:
+				payload = json.loads(self.payload)
+			except Exception as e:
+				LOGGER.error("Unable to convert notification payload string to JSON")
+				LOGGER.error(self.payload)
+				LOGGER.error(e)
+
+			if payload["table"] == "user_submission_table" and NAME == "image_processing":
+
+				while True:
+
+					contents, altered_img_path = None, None
+
+					with self.connection.cursor() as curs:
+						
+						try:
+							curs.execute("SELECT * FROM user_submission_retrieve();")
+							contents = curs.fetchone()
+						except Exception as e:
+							LOGGER.error("Unable to perform user_submission_retrieve.")
+							LOGGER.error(e)
+							err = "Unable to perform user_submission_retrieve."
+							break
+
+					if DEBUG_IMG_PROC_LOG: LOGGER.debug("Retrieved user_submission_retrieve contents")
+					if DEBUG_IMG_PROC_LOG: LOGGER.debug(contents)
+
+					if contents is None or len(contents) != 4:
+						LOGGER.error("Something is wrong with the user_submission_retrieve return result")
+						LOGGER.error(contents)
+						err = "Something is wrong with the user_submission_retrieve return result"
+						break
+
+					if DEBUG_IMG_PROC_LOG: LOGGER.debug("About to start image_processing.")
+
+					altered_img_path = img_processing(contents[2])
+
+					if DEBUG_IMG_PROC_LOG: LOGGER.debug("Finished Image Processing.")
+
+					if altered_img_path is None:
+						LOGGER.error("Did Not Receive the altered image path.")
+						err = "Did Not Receive the altered image path."
+						break
+
+					if DEBUG_IMG_PROC_LOG: LOGGER.debug("altered_img_path = {}".format(altered_img_path))
+
+					with self.connection.cursor() as curs:
+						
+						try:
+							curs.execute("SELECT * FROM image_processing_insert(%s,%s,%s);", (contents[1], contents[2], altered_img_path))
+							contents = curs.fetchone()
+						except Exception as e:
+							LOGGER.error("Unable to perform image_processing_insert.")
+							LOGGER.error(e)
+							err = "Unable to perform image_processing_insert."
+							break
+
+					if DEBUG_IMG_PROC_LOG: LOGGER.debug("Finished Inserting into image_processing_insert.")
+
+			# elif NAME == "facial-detection":
+			# 	pass
+			# elif NAME == "facial-recognition":
+			# 	pass
+
+			LOGGER.debug("FINISHED TASK")
+			self.parent_obj.set_state(READY)
+
+			return
+
+
+
+
 class db_process_thread(threading.Thread):
-
-
 	def __init__(self):
 		threading.Thread.__init__(self)
 
@@ -121,6 +220,7 @@ class db_process_thread(threading.Thread):
 		self.state = 0
 
 		self.register()
+		self.child_thread_list = []
 
 
 	def register(self):
@@ -154,97 +254,27 @@ class db_process_thread(threading.Thread):
 					# print("Got NOTIFY: PID: {}, CHANNEL: {}, PAYLOAD: {}".format( notif.pid, notif.channel, notif.payload))
 					if self.state == READY:
 						self.set_state(BUSY)
-						self.receive_callback(notif)
-						self.set_state(READY)
+						process_thread = process_stuff_thread(self, notif.payload)
+						# process_thread.set_payload(notif)
+						process_thread.start()
+						self.child_thread_list.append(process_thread)
+						# self.receive_callback(notif)
+						# self.set_state(READY)
 
 		self.curs.close()
 		self.curs = None
 
 
-	def receive_callback(self, notification):
-		global LOGGER, NAME
-
-		if notification.payload:
-
-			LOGGER.debug("RUNNING TASK")
-
-			payload = None
-
-			try:
-				payload = json.loads(notification.payload)
-			except Exception as e:
-				LOGGER.error("Unable to convert notification payload string to JSON")
-				LOGGER.error(notification.payload)
-				LOGGER.error(e)
-
-			if payload["table"] == "user_submission_table" and NAME == "image_processing":
-
-				contents, altered_img_path = None, None
-
-				with self.connection.cursor() as curs:
-					
-					try:
-						curs.execute("SELECT * FROM user_submission_retrieve(%s);", (payload["job_id"], ))
-						contents = curs.fetchone()
-					except Exception as e:
-						LOGGER.error("Unable to perform user_submission_retrieve.")
-						LOGGER.error(e)
-
-				if DEBUG_IMG_PROC_LOG: LOGGER.debug("Retrieved user_submission_retrieve contents")
-				if DEBUG_IMG_PROC_LOG: LOGGER.debug(contents)
-
-				if contents is None or len(contents) != 4:
-					LOGGER.error("Something is wrong with the user_submission_retrieve return result")
-					LOGGER.error(contents)
-					return
-
-				if DEBUG_IMG_PROC_LOG: LOGGER.debug("About to start image_processing.")
-
-				altered_img_path = img_processing(contents)
-
-				if DEBUG_IMG_PROC_LOG: LOGGER.debug("Finished Image Processing.")
-
-				if altered_img_path is None:
-					LOGGER.error("Did Not Receive the altered image path.")
-					return
-
-				if DEBUG_IMG_PROC_LOG: LOGGER.debug("altered_img_path = {}".format(altered_img_path))
-
-				with self.connection.cursor() as curs:
-					
-					try:
-						curs.execute("SELECT * FROM image_processing_insert(%s,%s,%s);", (contents[1], contents[2], altered_img_path))
-						contents = curs.fetchone()
-					except Exception as e:
-						LOGGER.error("Unable to perform image_processing_insert.")
-						LOGGER.error(e)
-
-				if DEBUG_IMG_PROC_LOG: LOGGER.debug("Finished Inserting into image_processing_insert.")
-
-			# elif NAME == "facial-detection":
-			# 	pass
-			# elif NAME == "facial-recognition":
-			# 	pass
-
-			LOGGER.debug("FINISHED TASK")
-
-
-			return
-
 	def set_state(self, state):
 		self.state = state
 
 # I WANT TO THREAD THIS
-def img_processing(photo_path, obj):
+def img_processing(photo_path):
 	global LOGGER
-	
-	# LOGGER.debug("Got NOTIFY: PID: {}, CHANNEL: {}, PAYLOAD: {}".format( notif.pid, notif.channel, notif.payload))
-
-	time.sleep(2)
-
+	if DEBUG_IMG_PROC_LOG: LOGGER.debug("Processing...")
+	time.sleep(20)
+	if DEBUG_IMG_PROC_LOG: LOGGER.debug("Processing...")
 	return "new_path"
-
-
 
 
 
