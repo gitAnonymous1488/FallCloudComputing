@@ -1,4 +1,4 @@
-import threading, time, sys, uuid, select, os, socket, logging, json
+import threading, time, sys, uuid, select, os, socket, logging, json, random
 import psycopg2, platform, netifaces, psutil
 from psycopg2.extensions import STATUS_BEGIN, STATUS_READY
 import read_configs
@@ -14,8 +14,12 @@ ACCEPTABLE_PROCESS_NAMES 	= ["image_processing", "facial-detection", "facial-rec
 READY 						= 0
 BUSY 						= 1
 STATE_TRANSLATION 			= {READY: "READY", BUSY: "BUSY"}
+DEBUG_THREADING 			= True
 DEBUG_IMG_PROC_LOG 			= True
+DEBUG_IMG_FD_LOG 			= True
 UPDATE_CHANNEL 				= "process_update"
+# UPDATE_CHANNEL				= None
+THREAD_CYCLE_TIME 			= 10
 # 
 
 if not os.path.exists("logs"):
@@ -35,6 +39,8 @@ REGISTER_STR 		= "SELECT * FROM insert_process_registration(%s,%s,%s);"
 HB_STR 				= "SELECT * FROM insert_process_hb(%s);"
 REGISTRATION_ID		= None
 RAM_USAGE 			= psutil.Process(os.getpid())
+THREAD_LIST 		= []
+THREAD_LIST_LOCK 	= threading.Lock()
 
 # RAM_USAGE.memory_info().rss
 
@@ -45,7 +51,8 @@ if __name__ == "__main__":
 	except Exception as e:
 		exit("Unable to read config file. {}".format(e))
 
-	CHANNEL 		= file_content["database_connections"]["channel"]
+	# CHANNEL 		= file_content["database_connections"]["channel"]
+	CHANNEL 		= None
 	HOST 			= file_content["database_connections"]["host"]
 	PASS 			= file_content["database_connections"]["password"]
 	USER 			= file_content["database_connections"]["user"]
@@ -125,7 +132,7 @@ class process_stuff_thread(threading.Thread):
 
 
 	def run(self):
-		global LOGGER, NAME, UPDATE_CHANNEL, PID
+		global LOGGER, NAME, UPDATE_CHANNEL, PID, READY, BUSY
 
 		err = None
 
@@ -168,12 +175,6 @@ class process_stuff_thread(threading.Thread):
 						err = "Something is wrong with the user_submission_retrieve return result"
 						break
 
-					# NOTIFY EVERYONE THAT YOU HAVE STARTED PROCESSING THE INFORMATION
-					# msg = {
-					# 	"update": "start_job", "pid": PID, "job_id": contents[1], "name": NAME
-					# }
-
-					# msg = """ {"update": "state_update", "pid": {}, "job_id": {}, "name": "{}" } """.format( PID, contents[1], NAME )
 					with self.connection.cursor() as curs:
 						try:
 							msg = {
@@ -223,18 +224,99 @@ class process_stuff_thread(threading.Thread):
 
 					if DEBUG_IMG_PROC_LOG: LOGGER.debug("Finished Inserting into image_processing_insert.")
 
-			# elif NAME == "facial-detection":
-			# 	pass
-			# elif NAME == "facial-recognition":
-			# 	pass
+			elif payload["table"] == "image_processing_result" and NAME == "facial-detection":
+
+
+				while True:
+
+					contents, bounding_box = None, None
+
+					with self.connection.cursor() as curs:
+						
+						try:
+							curs.execute("SELECT * FROM image_processing_retrieve();")
+							contents = curs.fetchone()
+						except Exception as e:
+							err = "Unable to perform image_processing_retrieve."
+							LOGGER.error(err)
+							LOGGER.error(e)
+							# break
+
+					if err: break
+
+					if DEBUG_IMG_PROC_LOG: LOGGER.debug("Retrieved image_processing_retrieve contents")
+					if DEBUG_IMG_PROC_LOG: LOGGER.debug(contents)
+
+					if contents is None or len(contents) != 5:
+						err = "Something is wrong with the image_processing_retrieve return result"
+						LOGGER.error(err)
+						LOGGER.error(contents)
+						# break
+
+					if err: break
+
+					with self.connection.cursor() as curs:
+						try:
+							msg = {
+								"channel": UPDATE_CHANNEL, "update": "start_job", "registration_id": REGISTRATION_ID,
+								"pid": PID, "job_id": contents[1], "name": NAME
+							}
+							curs.execute("SELECT pg_notify(%s, %s);", (UPDATE_CHANNEL, json.dumps(msg)))
+						except Exception as e:
+							LOGGER.error("Unable to notify the state update.")
+							LOGGER.error(e)
+
+					if DEBUG_IMG_PROC_LOG: LOGGER.debug("About to start Facial Detection.")
+
+					bounding_box = facial_detection(contents[2])
+
+					if DEBUG_IMG_PROC_LOG: LOGGER.debug("Finished Facial Detection.")
+					# if DEBUG_IMG_PROC_LOG: LOGGER.debug(bounding_box)
+
+					with self.connection.cursor() as curs:
+						try:
+							msg = {
+								"channel": 	UPDATE_CHANNEL, "update": "finnish_job", "registration_id": REGISTRATION_ID,
+								"pid": PID, "job_id": contents[1], "name": NAME
+							}
+							curs.execute("SELECT pg_notify(%s, %s);", (UPDATE_CHANNEL, json.dumps(msg)))
+							# self.connection.commit()
+						except Exception as e:
+							LOGGER.error("Unable to notify the state update.")
+							LOGGER.error(e)
+
+					# if DEBUG_IMG_PROC_LOG: LOGGER.debug(bounding_box)
+
+					if bounding_box is None:
+						err = "Did Not Receive the bounding box of a face."
+						LOGGER.error(err)
+						# break
+
+					# if DEBUG_IMG_PROC_LOG: LOGGER.debug(bounding_box)
+
+					if err: break
+
+					if DEBUG_IMG_PROC_LOG: LOGGER.debug(bounding_box)
+
+					with self.connection.cursor() as curs:
+						
+						try:
+							curs.execute("SELECT * FROM facial_detection_insert(%s,%s,%s,%s,%s,%s,%s);", 
+									(contents[1], contents[2], contents[3], bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))
+							contents = curs.fetchone()
+						except Exception as e:
+							err = "Unable to perform facial_detection_insert."
+							LOGGER.error(err)
+							LOGGER.error(e)
+
+					if err: break
+
+					if DEBUG_IMG_PROC_LOG: LOGGER.debug("Finished Inserting into facial_detection_insert.")
 
 			LOGGER.debug("FINISHED TASK")
 			self.callback(READY)
-			# self.parent_obj.set_state(READY)
 
-			# NOTIFY EVERYONE THAT YOU HAVE STARTED PROCESSING THE INFORMATION
-
-			return
+			self.exit()
 
 
 
@@ -272,7 +354,8 @@ class db_process_thread(threading.Thread):
 
 
 	def run(self):
-		global LOGGER, STATE, PID
+		global LOGGER, STATE, PID, THREAD_LIST, CHANNEL
+
 		if self.connection.status != STATUS_READY:
 			return None
 
@@ -285,26 +368,26 @@ class db_process_thread(threading.Thread):
 				while self.connection.notifies:
 					notif = self.connection.notifies.pop(0)
 					LOGGER.debug("Got NOTIFY: PID: {}, CHANNEL: {}, PAYLOAD: {}".format( notif.pid, notif.channel, notif.payload))
-					# print("Got NOTIFY: PID: {}, CHANNEL: {}, PAYLOAD: {}".format( notif.pid, notif.channel, notif.payload))
 					if self.state == READY:
 						def set_state(state):
 							self.set_state(state)
 
-						self.set_state(BUSY)
+						# def get_state():
+						# 	return self.state
 
+						self.set_state(BUSY)
 						process_thread = process_stuff_thread(set_state, notif.payload)
-						# process_thread.set_payload(notif)
 						process_thread.start()
-						self.child_thread_list.append(process_thread)
-						# self.receive_callback(notif)
-						# self.set_state(READY)
+						THREAD_LIST_LOCK.acquire()
+						THREAD_LIST.append(process_thread)
+						THREAD_LIST_LOCK.release()
 
 		self.curs.close()
 		self.curs = None
 
 
 	def set_state(self, state):
-		global REGISTRATION_ID
+		global REGISTRATION_ID, STATE_TRANSLATION, NAME, UPDATE_CHANNEL, PID
 		self.state = state
 
 		with self.connection.cursor() as curs:
@@ -322,12 +405,69 @@ class db_process_thread(threading.Thread):
 
 # I WANT TO THREAD THIS
 def img_processing(photo_path):
-	global LOGGER
+	global LOGGER,DEBUG_IMG_PROC_LOG
 	if DEBUG_IMG_PROC_LOG: LOGGER.debug("Processing...")
-	time.sleep(10)
+	time.sleep(random.randint(3, 6))
 	if DEBUG_IMG_PROC_LOG: LOGGER.debug("Processing...")
 	return "new_path"
 
+
+def facial_detection(photo_path):
+	global LOGGER, DEBUG_IMG_FD_LOG
+	if DEBUG_IMG_FD_LOG: LOGGER.debug("Processing...")
+	time.sleep(random.randint(5, 10))
+	if DEBUG_IMG_FD_LOG: LOGGER.debug("Processing...")
+	return [random.randint(0, 8), random.randint(0, 8), random.randint(15, 20), random.randint(15, 20)]
+
+
+class thread_checking(threading.Thread):
+
+	def __init__(self):
+		threading.Thread.__init__(self)
+		self.joinable = []
+
+	def run(self):
+		global THREAD_LIST_LOCK, THREAD_LIST, LOGGER
+
+		while 1:
+			THREAD_LIST_LOCK.acquire()
+			try:
+				for thread in THREAD_LIST:
+					if not thread.is_alive():
+						self.joinable.append(thread)
+						thread.join()
+
+				for jthread in self.joinable:
+					THREAD_LIST.remove(jthread)
+
+				self.joinable = []
+
+			except Exception as e:
+				LOGGER.error("{:<80}[{:>8}][{:>8}]".format("CHILD THREAD CHECKING REMOVAL LOOP ERROR.", "THREAD", "BASE"))
+				LOGGER.error(e)
+
+			ram_usage = 0
+
+			try:
+				ram_usage = RAM_USAGE.memory_info().rss // (1024 * 1024)
+			except Exception as e:
+				if False: LOGGER.error("Unable To Access RAM For {}.".format("Thread Checking"))
+				if False: LOGGER.error(e)
+
+			THREAD_LIST_LOCK.release()
+			if DEBUG_THREADING: logging.debug("RUNNING THREADS={}, TOTAL RAM={}MB, TOTAL CPU={}%".format(threading.active_count(), ram_usage, psutil.cpu_percent()))
+			time.sleep(THREAD_CYCLE_TIME)
+
+
+
+def init_watchers():
+	try:
+		thread_checker = thread_checking()
+		thread_checker.start()
+	except Exception as e:
+		logging.error("START THREAD WATCHER ERROR.")
+		logging.error(e)
+		exit(-2)
 
 
 if __name__ == "__main__":
@@ -339,6 +479,8 @@ if __name__ == "__main__":
 	if not NAME in ACCEPTABLE_PROCESS_NAMES:
 		exit("Not a valid process name")
 
+	CHANNEL = file_content["database_connections"]["channel"][NAME]
+
 	LOGGER.setLevel(logging.DEBUG)
 	LOGGER.debug("STARTING PROCESS WITH NAME: {}".format( NAME ))
 
@@ -347,3 +489,5 @@ if __name__ == "__main__":
 
 	db_heartbeat = db_heartbeat_thread()
 	db_heartbeat.start()
+
+	init_watchers()

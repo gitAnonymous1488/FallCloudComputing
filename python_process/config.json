@@ -5,8 +5,12 @@
 		"initialize_db": "postgres",
 		"user": "postgres",
 		"password": "...",
-		"channel": "submission_job",
-		"port": "5432"
+		"channel": {
+			"image_processing": "submission_job",
+			"facial-detection": "image_job",
+			"facial-recognition": "detection_job"
+
+		}, "port": "5432"
 	},
 	"database_configuration": {
 		"database_name": "cloud_computing_project",

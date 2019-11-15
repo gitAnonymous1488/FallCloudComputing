@@ -1,0 +1,5 @@
+CREATE TRIGGER after_image_processing_trigger
+AFTER INSERT
+ON image_processing_result
+FOR EACH ROW
+EXECUTE PROCEDURE after_image_processing_insert();

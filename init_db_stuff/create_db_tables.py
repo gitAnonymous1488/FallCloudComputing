@@ -453,6 +453,20 @@ def create_triggers(connection):
 		exit(-1)
 
 
+	###############					 CREATE THE AFTER INSERT IMAGE PROCESSING!!!
+	try:
+		create_sql_from_file(file_content["files"]["image_processing_function"], connection)
+	except Exception as e:
+		log_msg("Unable to create after image processing trigger function. {}".format(e))
+		exit(-1)
+
+	try:
+		create_sql_from_file(file_content["files"]["image_processing_trigger"], connection)
+	except Exception as e:
+		log_msg("Unable to create after image processing trigger. {}".format(e))
+		exit(-1)
+
+
 def create_views(connection):
 	try:
 		file_content = read_configs.retrieve_config()
