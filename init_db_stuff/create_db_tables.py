@@ -466,6 +466,19 @@ def create_triggers(connection):
 		log_msg("Unable to create after image processing trigger. {}".format(e))
 		exit(-1)
 
+	###############					 CREATE THE AFTER INSERT FACIAL DETECTION!!!
+	try:
+		create_sql_from_file(file_content["files"]["facial_detection_function"], connection)
+	except Exception as e:
+		log_msg("Unable to create after facial_detection trigger function. {}".format(e))
+		exit(-1)
+
+	try:
+		create_sql_from_file(file_content["files"]["facial_detection_trigger"], connection)
+	except Exception as e:
+		log_msg("Unable to create after facial_detection trigger. {}".format(e))
+		exit(-1)
+
 
 def create_views(connection):
 	try:

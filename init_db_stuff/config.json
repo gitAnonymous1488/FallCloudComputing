@@ -87,7 +87,9 @@
 		"user_submission_function": "sql_files/after_user_submission_trigger_function.sql",
 		"user_submission_trigger": "sql_files/after_user_submission_trigger.sql",
 		"image_processing_function": "sql_files/after_image_processing_trigger_function.sql",
-		"image_processing_trigger": "sql_files/after_image_processing_trigger.sql"
+		"image_processing_trigger": "sql_files/after_image_processing_trigger.sql",
+		"facial_detection_function": "sql_files/after_facial_detection_trigger_function.sql",
+		"facial_detection_trigger": "sql_files/after_facial_detection_trigger.sql"
 	},
 	"logging_files": {
 		"create_db_logging": "logs/create_db.log"

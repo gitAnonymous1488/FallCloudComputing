@@ -1,4 +1,4 @@
-import threading, time, sys, uuid, select, os, socket, logging, json, random
+import threading, time, sys, uuid, select, os, socket, logging, json, random, string
 import psycopg2, platform, netifaces, psutil
 from psycopg2.extensions import STATUS_BEGIN, STATUS_READY
 import read_configs
@@ -17,6 +17,7 @@ STATE_TRANSLATION 			= {READY: "READY", BUSY: "BUSY"}
 DEBUG_THREADING 			= True
 DEBUG_IMG_PROC_LOG 			= True
 DEBUG_IMG_FD_LOG 			= True
+DEBUG_IMG_FR_LOG 			= True
 UPDATE_CHANNEL 				= "process_update"
 # UPDATE_CHANNEL				= None
 THREAD_CYCLE_TIME 			= 10
@@ -176,6 +177,7 @@ class process_stuff_thread(threading.Thread):
 						err = "Something is wrong with the user_submission_retrieve return result"
 						break
 
+# I SHOULD BE THREADING THIS
 					with self.proc_conn.cursor() as curs:
 						try:
 							msg = {
@@ -193,6 +195,7 @@ class process_stuff_thread(threading.Thread):
 
 					if DEBUG_IMG_PROC_LOG: LOGGER.debug("Finished Image Processing.")
 
+# I SHOULD BE THREADING THIS
 					with self.proc_conn.cursor() as curs:
 						try:
 							msg = {
@@ -215,7 +218,7 @@ class process_stuff_thread(threading.Thread):
 					with self.proc_conn.cursor() as curs:
 						
 						try:
-							curs.execute("SELECT * FROM image_processing_insert(%s,%s,%s);", (contents[1], contents[2], altered_img_path))
+							curs.execute("SELECT * FROM image_processing_insert(%s,%s,%s);", (contents[1], altered_img_path, contents[2]))
 							contents = curs.fetchone()
 						except Exception as e:
 							LOGGER.error("Unable to perform image_processing_insert.")
@@ -245,8 +248,8 @@ class process_stuff_thread(threading.Thread):
 
 					if err: break
 
-					if DEBUG_IMG_PROC_LOG: LOGGER.debug("Retrieved image_processing_retrieve contents")
-					if DEBUG_IMG_PROC_LOG: LOGGER.debug(contents)
+					if DEBUG_IMG_FD_LOG: LOGGER.debug("Retrieved image_processing_retrieve contents")
+					if DEBUG_IMG_FD_LOG: LOGGER.debug(contents)
 
 					if contents is None or len(contents) != 5:
 						err = "Something is wrong with the image_processing_retrieve return result"
@@ -256,6 +259,7 @@ class process_stuff_thread(threading.Thread):
 
 					if err: break
 
+# I SHOULD BE THREADING THIS
 					with self.proc_conn.cursor() as curs:
 						try:
 							msg = {
@@ -267,13 +271,13 @@ class process_stuff_thread(threading.Thread):
 							LOGGER.error("Unable to notify the state update.")
 							LOGGER.error(e)
 
-					if DEBUG_IMG_PROC_LOG: LOGGER.debug("About to start Facial Detection.")
+					if DEBUG_IMG_FD_LOG: LOGGER.debug("About to start Facial Detection.")
 
 					bounding_box = facial_detection(contents[2])
 
-					if DEBUG_IMG_PROC_LOG: LOGGER.debug("Finished Facial Detection.")
-					# if DEBUG_IMG_PROC_LOG: LOGGER.debug(bounding_box)
+					if DEBUG_IMG_FD_LOG: LOGGER.debug("Finished Facial Detection.")
 
+# I SHOULD BE THREADING THIS
 					with self.proc_conn.cursor() as curs:
 						try:
 							msg = {
@@ -286,18 +290,18 @@ class process_stuff_thread(threading.Thread):
 							LOGGER.error("Unable to notify the state update.")
 							LOGGER.error(e)
 
-					# if DEBUG_IMG_PROC_LOG: LOGGER.debug(bounding_box)
+					# if DEBUG_IMG_FD_LOG: LOGGER.debug(bounding_box)
 
 					if bounding_box is None:
 						err = "Did Not Receive the bounding box of a face."
 						LOGGER.error(err)
 						# break
 
-					# if DEBUG_IMG_PROC_LOG: LOGGER.debug(bounding_box)
+					# if DEBUG_IMG_FD_LOG: LOGGER.debug(bounding_box)
 
 					if err: break
 
-					if DEBUG_IMG_PROC_LOG: LOGGER.debug(bounding_box)
+					if DEBUG_IMG_FD_LOG: LOGGER.debug(bounding_box)
 
 					with self.proc_conn.cursor() as curs:
 						
@@ -312,8 +316,97 @@ class process_stuff_thread(threading.Thread):
 
 					if err: break
 
-					if DEBUG_IMG_PROC_LOG: LOGGER.debug("Finished Inserting into facial_detection_insert.")
+					if DEBUG_IMG_FD_LOG: LOGGER.debug("Finished Inserting into facial_detection_insert.")
 
+			elif payload["table"] == "facial_detection_result" and NAME == "facial-recognition":
+
+				while True:
+
+					contents, bounding_box = None, None
+
+					with self.proc_conn.cursor() as curs:
+						
+						try:
+							curs.execute("SELECT * FROM facial_detection_retrieve();")
+							contents = curs.fetchone()
+						except Exception as e:
+							err = "Unable to perform facial_detection_retrieve."
+							LOGGER.error(err)
+							LOGGER.error(e)
+							# break
+
+					if err: break
+
+					if DEBUG_IMG_FR_LOG: LOGGER.debug("Retrieved facial_detection_retrieve contents")
+					if DEBUG_IMG_FR_LOG: LOGGER.debug(contents)
+
+					if contents is None or len(contents) != 9:
+						err = "Something is wrong with the facial_detection_retrieve return result"
+						LOGGER.error(err)
+						LOGGER.error(contents)
+						# break
+
+					if err: break
+
+# I SHOULD BE THREADING THIS
+					with self.proc_conn.cursor() as curs:
+						try:
+							msg = {
+								"channel": UPDATE_CHANNEL, "update": "start_job", "registration_id": REGISTRATION_ID,
+								"pid": PID, "job_id": contents[1], "name": NAME
+							}
+							curs.execute("SELECT pg_notify(%s, %s);", (UPDATE_CHANNEL, json.dumps(msg)))
+						except Exception as e:
+							LOGGER.error("Unable to notify the state update.")
+							LOGGER.error(e)
+
+					if DEBUG_IMG_FR_LOG: LOGGER.debug("About to start Facial Recognition.")
+
+					person_name = facial_recognition(contents[2], [contents[4],contents[5],contents[6],contents[7]])
+
+					if DEBUG_IMG_FR_LOG: LOGGER.debug("Finished Facial Recognition.")
+					# if DEBUG_IMG_FR_LOG: LOGGER.debug(bounding_box)
+
+# I SHOULD BE THREADING THIS
+					with self.proc_conn.cursor() as curs:
+						try:
+							msg = {
+								"channel": 	UPDATE_CHANNEL, "update": "finnish_job", "registration_id": REGISTRATION_ID,
+								"pid": PID, "job_id": contents[1], "name": NAME
+							}
+							curs.execute("SELECT pg_notify(%s, %s);", (UPDATE_CHANNEL, json.dumps(msg)))
+							# self.connection.commit()
+						except Exception as e:
+							LOGGER.error("Unable to notify the state update.")
+							LOGGER.error(e)
+
+					# if DEBUG_IMG_FR_LOG: LOGGER.debug(bounding_box)
+
+					if person_name is None:
+						err = "Did Not Receive The Name Of The Person"
+						LOGGER.error(err)
+						# break
+
+					# if DEBUG_IMG_FR_LOG: LOGGER.debug(bounding_box)
+
+					if err: break
+
+					if DEBUG_IMG_FR_LOG: LOGGER.debug(person_name)
+
+					with self.proc_conn.cursor() as curs:
+						
+						try:
+							curs.execute("SELECT * FROM facial_recognition_insert(%s,%s,%s);", 
+									(contents[1], contents[3], person_name))
+							contents = curs.fetchone()
+						except Exception as e:
+							err = "Unable to perform facial_recognition_insert."
+							LOGGER.error(err)
+							LOGGER.error(e)
+
+					if err: break
+
+					if DEBUG_IMG_FR_LOG: LOGGER.debug("Finished Inserting into facial_recognition_insert.")
 
 			LOGGER.debug("FINISHED TASK")
 		self.callback(READY)
@@ -364,11 +457,14 @@ class db_process_thread(threading.Thread):
 		def set_state(state):
 			self.set_state(state)
 
-		# got_select = True
+
+# DONT REQUIRE THE CORRECT STUFF! FAIL SAFELY
+# 
+# 
 		self.set_state(BUSY)
-		# "image_processing", "facial-detection", "facial-recognition"
 		if NAME == "image_processing": payload = json.dumps({"table": "user_submission_table"})
 		if NAME == "facial-detection": payload = json.dumps({"table": "image_processing_result"})
+		if NAME == "facial-recognition": payload = json.dumps({"table": "facial_detection_result"})
 		process_thread = process_stuff_thread(set_state, payload)
 		process_thread.start()
 		THREAD_LIST_LOCK.acquire()
@@ -428,7 +524,7 @@ class db_process_thread(threading.Thread):
 					LOGGER.error(e)
 
 
-# I WANT TO THREAD THIS
+
 def img_processing(photo_path):
 	global LOGGER,DEBUG_IMG_PROC_LOG
 	if DEBUG_IMG_PROC_LOG: LOGGER.debug("Processing...")
@@ -443,6 +539,20 @@ def facial_detection(photo_path):
 	time.sleep(random.randint(5, 10))
 	if DEBUG_IMG_FD_LOG: LOGGER.debug("Processing...")
 	return [random.randint(0, 8), random.randint(0, 8), random.randint(15, 20), random.randint(15, 20)]
+
+
+def facial_recognition(photo_path, bounding_box):
+	global LOGGER, DEBUG_IMG_FD_LOG
+	if DEBUG_IMG_FD_LOG: LOGGER.debug("Processing...")
+	time.sleep(random.randint(3, 5))
+	if DEBUG_IMG_FD_LOG: LOGGER.debug("Processing...")
+	return " ".join([randomString(random.randint(5, 10)), randomString(random.randint(7, 11))])
+
+
+def randomString(stringLength=10):
+    """Generate a random string of fixed length """
+    letters = string.ascii_lowercase
+    return ''.join(random.choice(letters) for i in range(stringLength))
 
 
 class thread_checking(threading.Thread):
