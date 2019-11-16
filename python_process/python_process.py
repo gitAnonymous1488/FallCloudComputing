@@ -7,7 +7,7 @@ import read_configs
 os.chdir(os.path.dirname(__file__))
 
 # TODO: PUT THIS IN THE CONFIG
-SELECT_TIMEOUT 				= 6
+SELECT_TIMEOUT 				= 1
 HEARTBEAT_SLEEP 			= 1
 MISSED_HEARTBEAT_KILL 		= 2
 ACCEPTABLE_PROCESS_NAMES 	= ["image_processing", "facial-detection", "facial-recognition"]
@@ -41,6 +41,7 @@ REGISTRATION_ID		= None
 RAM_USAGE 			= psutil.Process(os.getpid())
 THREAD_LIST 		= []
 THREAD_LIST_LOCK 	= threading.Lock()
+PG_CONN_LOCK		= threading.Lock()
 
 # RAM_USAGE.memory_info().rss
 
@@ -80,8 +81,8 @@ class db_heartbeat_thread(threading.Thread):
 		threading.Thread.__init__(self)
 
 		try:
-			self.connection = psycopg2.connect(FRMT_CONN_STR)
-			self.connection.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+			self.hb_conn = psycopg2.connect(FRMT_CONN_STR)
+			self.hb_conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
 		except Exception as e:
 			exit("You CANNOT Connect To The DB. {}".format(e))
 
@@ -93,13 +94,13 @@ class db_heartbeat_thread(threading.Thread):
 
 		miss_count = 0
 
-		if self.connection.status != STATUS_READY:
+		if self.hb_conn.status != STATUS_READY:
 			return None
 
 		time.sleep(HEARTBEAT_SLEEP)
 
-		with self.connection.cursor() as curs:
-			while self.connection.status == STATUS_READY:
+		with self.hb_conn.cursor() as curs:
+			while self.hb_conn.status == STATUS_READY:
 
 				if REGISTRATION_ID is not None:
 					curs.execute(HB_STR, (REGISTRATION_ID, ))
@@ -117,8 +118,8 @@ class process_stuff_thread(threading.Thread):
 		threading.Thread.__init__(self)
 
 		try:
-			self.connection = psycopg2.connect(FRMT_CONN_STR)
-			self.connection.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+			self.proc_conn = psycopg2.connect(FRMT_CONN_STR)
+			self.proc_conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
 		except Exception as e:
 			exit("You CANNOT Connect To The DB. {}".format(e))
 
@@ -155,7 +156,7 @@ class process_stuff_thread(threading.Thread):
 
 					contents, altered_img_path = None, None
 
-					with self.connection.cursor() as curs:
+					with self.proc_conn.cursor() as curs:
 						
 						try:
 							curs.execute("SELECT * FROM user_submission_retrieve();")
@@ -175,7 +176,7 @@ class process_stuff_thread(threading.Thread):
 						err = "Something is wrong with the user_submission_retrieve return result"
 						break
 
-					with self.connection.cursor() as curs:
+					with self.proc_conn.cursor() as curs:
 						try:
 							msg = {
 								"channel": UPDATE_CHANNEL, "update": "start_job", "registration_id": REGISTRATION_ID,
@@ -192,7 +193,7 @@ class process_stuff_thread(threading.Thread):
 
 					if DEBUG_IMG_PROC_LOG: LOGGER.debug("Finished Image Processing.")
 
-					with self.connection.cursor() as curs:
+					with self.proc_conn.cursor() as curs:
 						try:
 							msg = {
 								"channel": UPDATE_CHANNEL, "update": "finnish_job", "registration_id": REGISTRATION_ID,
@@ -211,7 +212,7 @@ class process_stuff_thread(threading.Thread):
 
 					if DEBUG_IMG_PROC_LOG: LOGGER.debug("altered_img_path = {}".format(altered_img_path))
 
-					with self.connection.cursor() as curs:
+					with self.proc_conn.cursor() as curs:
 						
 						try:
 							curs.execute("SELECT * FROM image_processing_insert(%s,%s,%s);", (contents[1], contents[2], altered_img_path))
@@ -231,7 +232,7 @@ class process_stuff_thread(threading.Thread):
 
 					contents, bounding_box = None, None
 
-					with self.connection.cursor() as curs:
+					with self.proc_conn.cursor() as curs:
 						
 						try:
 							curs.execute("SELECT * FROM image_processing_retrieve();")
@@ -255,7 +256,7 @@ class process_stuff_thread(threading.Thread):
 
 					if err: break
 
-					with self.connection.cursor() as curs:
+					with self.proc_conn.cursor() as curs:
 						try:
 							msg = {
 								"channel": UPDATE_CHANNEL, "update": "start_job", "registration_id": REGISTRATION_ID,
@@ -273,7 +274,7 @@ class process_stuff_thread(threading.Thread):
 					if DEBUG_IMG_PROC_LOG: LOGGER.debug("Finished Facial Detection.")
 					# if DEBUG_IMG_PROC_LOG: LOGGER.debug(bounding_box)
 
-					with self.connection.cursor() as curs:
+					with self.proc_conn.cursor() as curs:
 						try:
 							msg = {
 								"channel": 	UPDATE_CHANNEL, "update": "finnish_job", "registration_id": REGISTRATION_ID,
@@ -298,7 +299,7 @@ class process_stuff_thread(threading.Thread):
 
 					if DEBUG_IMG_PROC_LOG: LOGGER.debug(bounding_box)
 
-					with self.connection.cursor() as curs:
+					with self.proc_conn.cursor() as curs:
 						
 						try:
 							curs.execute("SELECT * FROM facial_detection_insert(%s,%s,%s,%s,%s,%s,%s);", 
@@ -313,10 +314,11 @@ class process_stuff_thread(threading.Thread):
 
 					if DEBUG_IMG_PROC_LOG: LOGGER.debug("Finished Inserting into facial_detection_insert.")
 
-			LOGGER.debug("FINISHED TASK")
-			self.callback(READY)
 
-			self.exit()
+			LOGGER.debug("FINISHED TASK")
+		self.callback(READY)
+		self.proc_conn.close()
+		self.exit()
 
 
 
@@ -354,60 +356,83 @@ class db_process_thread(threading.Thread):
 
 
 	def run(self):
-		global LOGGER, STATE, PID, THREAD_LIST, CHANNEL
+		global LOGGER, STATE, PID, THREAD_LIST, CHANNEL, NAME
 
 		if self.connection.status != STATUS_READY:
 			return None
 
-		self.curs = self.connection.cursor()
-		self.curs.execute("LISTEN {0};".format(CHANNEL))
+		def set_state(state):
+			self.set_state(state)
+
+		# got_select = True
+		self.set_state(BUSY)
+		# "image_processing", "facial-detection", "facial-recognition"
+		if NAME == "image_processing": payload = json.dumps({"table": "user_submission_table"})
+		if NAME == "facial-detection": payload = json.dumps({"table": "image_processing_result"})
+		process_thread = process_stuff_thread(set_state, payload)
+		process_thread.start()
+		THREAD_LIST_LOCK.acquire()
+		THREAD_LIST.append(process_thread)
+		THREAD_LIST_LOCK.release()
 
 		while self.connection.status == STATUS_READY:
-			if select.select([self.connection],[],[],SELECT_TIMEOUT) != ([],[],[]):
-				self.connection.poll()
-				while self.connection.notifies:
-					notif = self.connection.notifies.pop(0)
-					LOGGER.debug("Got NOTIFY: PID: {}, CHANNEL: {}, PAYLOAD: {}".format( notif.pid, notif.channel, notif.payload))
-					if self.state == READY:
-						def set_state(state):
-							self.set_state(state)
+			got_select = False
+			PG_CONN_LOCK.acquire()
+			with self.connection.cursor() as curs:
 
-						# def get_state():
-						# 	return self.state
+				try:
+					curs.execute("LISTEN {0};".format(CHANNEL))
+				except Exception as e:
+					LOGGER.error("Unable to listen on the channel for my stuff.")
+					LOGGER.error(e)
 
-						self.set_state(BUSY)
-						process_thread = process_stuff_thread(set_state, notif.payload)
-						process_thread.start()
-						THREAD_LIST_LOCK.acquire()
-						THREAD_LIST.append(process_thread)
-						THREAD_LIST_LOCK.release()
+				if select.select([self.connection],[],[],SELECT_TIMEOUT) != ([],[],[]):
+					self.connection.poll()
+					while self.connection.notifies:
+						notif = self.connection.notifies.pop(0)
+						LOGGER.debug("Got NOTIFY: PID: {}, CHANNEL: {}, PAYLOAD: {}".format( notif.pid, notif.channel, notif.payload))
+						if self.state == READY:
+							def set_state(state):
+								self.set_state(state)
 
-		self.curs.close()
-		self.curs = None
+							got_select = True
+
+							
+							process_thread = process_stuff_thread(set_state, notif.payload)
+							process_thread.start()
+							THREAD_LIST_LOCK.acquire()
+							THREAD_LIST.append(process_thread)
+							THREAD_LIST_LOCK.release()
+
+			PG_CONN_LOCK.release()
+
+			if got_select:
+				self.set_state(BUSY)
 
 
+# LOOK TO THREAD THIS AND MAKE IT SAFE SO I DONT OPEN ANOTHER CONNECTION!
 	def set_state(self, state):
 		global REGISTRATION_ID, STATE_TRANSLATION, NAME, UPDATE_CHANNEL, PID
 		self.state = state
 
-		with self.connection.cursor() as curs:
-			try:
-				msg = {
-					"channel": UPDATE_CHANNEL, "update": "state_update", "registration_id": REGISTRATION_ID,
-					"pid": PID, "state": STATE_TRANSLATION[state], "name": NAME
-				}
-				curs.execute("SELECT pg_notify(%s, %s);", (UPDATE_CHANNEL, json.dumps(msg)))
-				# self.connection.commit()
-			except Exception as e:
-				LOGGER.error("Unable to notify the state update.")
-				LOGGER.error(e)
+		with psycopg2.connect(FRMT_CONN_STR) as conn:
+			with conn.cursor() as curs:
+				try:
+					msg = {
+						"channel": UPDATE_CHANNEL, "update": "state_update", "registration_id": REGISTRATION_ID,
+						"pid": PID, "state": STATE_TRANSLATION[state], "name": NAME
+					}
+					curs.execute("SELECT pg_notify(%s, %s);", (UPDATE_CHANNEL, json.dumps(msg)))
+				except Exception as e:
+					LOGGER.error("Unable to notify the state update.")
+					LOGGER.error(e)
 
 
 # I WANT TO THREAD THIS
 def img_processing(photo_path):
 	global LOGGER,DEBUG_IMG_PROC_LOG
 	if DEBUG_IMG_PROC_LOG: LOGGER.debug("Processing...")
-	time.sleep(random.randint(3, 6))
+	time.sleep(random.randint(1, 3))
 	if DEBUG_IMG_PROC_LOG: LOGGER.debug("Processing...")
 	return "new_path"
 
