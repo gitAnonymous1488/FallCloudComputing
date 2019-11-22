@@ -1,5 +1,0 @@
-	FROM python:python_process
-	COPY . /python_process
-	WORKDIR /python_process
-	RUN pip install -r requirements.txt
-	CMD python ./python_process.py

@@ -6,6 +6,8 @@
 */
 
 // const winston = require('winston');
+
+const fs = require("fs");
 const {transports, createLogger, format} = require('winston');
 const { spawn, exec } = require('child_process');
 const config_json = require("./config.json");
@@ -14,6 +16,8 @@ const util = require('util');
 const express = require('express');
 const app = express();
 const ip = require("ip");
+
+const read_last_lines = require('read-last-lines');
 
 const heartbeats = require('heartbeats');
 var NODE_REG_ID = null;
@@ -144,6 +148,27 @@ heart.createEvent(1, function(count, last){
 });
 // ############### HEARTBEAT THE SERVER ###############
 
+app.get("/logs/:pid", (req, res) => {
+	let pid = req.params.pid;
+	let request_ip = req.connection.remoteAddress.split(":")[-1];
+	
+	if (!req.params.pid) {
+		res.status(404).json({"err": "Request Did Not Include PID For Logs"});
+		return logger.error(util.format("%s [%s](%s)", ("Request Did Not Include PID For Logs.").padEnd(65, " "), request_ip, "/logs"));
+	}
+
+	let file_str = util.format("../python_process/logs/process_%s.log", pid)
+
+	console.log(file_str);
+
+	if (!fs.existsSync(file_str)) {
+		res.status(404).json({"err": "Request Log For PID, " + pid + ", Does Not Exist."});
+		return logger.error(util.format("%s [%s](%s)", ("Request Log For PID, " + pid + ", Does Not Exist.").padEnd(65, " "), request_ip, "/logs"));
+	}
+
+	read_last_lines.read(file_str, 50)
+	               .then((lines) => { res.status(200).json({"result": lines}); });
+});
 
 app.post("/start/:name", (req, res) => {
 	let request_ip = req.connection.remoteAddress.split(":")[-1];

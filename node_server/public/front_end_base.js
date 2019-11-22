@@ -174,6 +174,34 @@ let node_context_menu = {
 	}], 
 };
 
+let retrieve_logs = function(ip,  pid, cb) {
+
+	$.ajax({
+		url: "http://" + ip + ":4001/logs/" + pid,
+		type: "GET",
+		contentType: "application/text",
+		headers: {
+			// "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			// "Access-Control-Allow-Headers": "x-requested-with",
+			// 'Access-Control-Allow-Origin': '*',
+		},
+		success: function(data, text) {
+
+			// console.log(data, text);
+			$$("process_logs_textarea").setValue(data.result);
+			cb();
+			// $$("center_view_multi").setValue("process_logs_text");
+
+		}, error: function(request, status, error) {
+
+			cb(error);
+
+			console.log(request, status, error);
+
+		}
+	});
+} 
+
 webix.ui({
 	rows:[
 		{gravity: 1, view: "label", label: "CLOUD COMPUTING PROJECT", align:"center"},
@@ -195,7 +223,6 @@ webix.ui({
 						]},
 					], ready: function() { $$("prject_menu").select("dashboard"); }, on:{
 						onAfterSelect: function(id){
-							// webix.message("Selected: "+this.getItem(id).value)
 
 							$$("center_view_multi").setValue(id);
 						}
@@ -285,7 +312,78 @@ webix.ui({
 										console.log(res)
 									}
 								})
+							},
+							on: {
+								onItemClick: function(id, e, node) {
+									let row = this.getItem(id);
+
+									if (!row) return console.log("There is no row with id: " + id);
+
+									if (!row.hasOwnProperty("process_pid")) return console.log("There is no process_pid key in the row");
+
+									if (!row.hasOwnProperty("process_ip")) return console.log("There is no process_ip key in the row");
+
+									retrieve_logs(row.process_ip, row.process_pid, (err) => {
+										if (err) return;
+
+										$$("process_logs_ip").setValue(row.process_ip);
+										$$("process_logs_pid").setValue(row.process_pid);
+
+										$$("center_view_multi").setValue("process_logs_text");
+									})
+								}
 							}
+						}, {
+							id: "process_logs_text",
+							rows: [
+
+								{
+									cols: [
+										{
+											view:"button",
+											value: "Back",
+											on: {
+												onItemClick: function() {
+													$$("center_view_multi").setValue("process_registration_table");
+												}
+											}
+										}, {
+											gravity: 5,
+											view: "label",
+											id: "process_logs_ip",
+											label: "",
+											align:"center"
+										},{
+											gravity: 5,
+											view: "label",
+											id: "process_logs_pid",
+											label: "",
+											align:"center"
+										}, {
+											view:"button",
+											value: "Refresh",
+											on: {
+												onItemClick: function() {
+													let ip = $$("process_logs_ip").getValue();
+													let pid = $$("process_logs_pid").getValue();
+
+													retrieve_logs(ip, pid, (err) => {
+														if (err) return;
+
+
+													});
+												}
+											}
+										}
+									]
+								}, {
+									view: "textarea",
+									id: "process_logs_textarea"
+								}
+
+							]
+							// view: "textarea",
+							
 						}
 					]
 				},
