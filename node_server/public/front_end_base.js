@@ -7,18 +7,11 @@ ws.onopen = () => {
 
 }
 
-// let TRANSLATED_STATES = {
-// 	"b"
-// }
-
 ws.onmessage = (e) => {
 
 	let res = null;
-
-	// new_node_event
 	let data = JSON.parse(e.data);
 
-	// console.log(data);
 
 	if (!data.hasOwnProperty('channel') || !data.hasOwnProperty("payload"))
 		return;
@@ -70,13 +63,12 @@ ws.onmessage = (e) => {
 	}
 
 	if (data.channel == "process_update") {
-		// console.log(data)
 		let json_data = null, row;
 
 		try {
 			json_data = JSON.parse(data.payload)
 		} catch (e) {
-			console.log("Could not parse incoming process_update msg")
+			console.log("Could not parse incoming process_update msg");
 			return;
 		}
 
@@ -116,9 +108,6 @@ ws.onmessage = (e) => {
 
 			}
 		} 
-		// update_row 
-
-		// console.log(json_data)
 	}
 
 	if (data.channel == "submission_job") {
@@ -147,18 +136,8 @@ ws.onmessage = (e) => {
 
 		row = $$("dashboard").getItem(payload.job_id);
 
-		// rows = $$("dashboard").find((obj) => {
-		// 	return obj.id == payload.job_id;
-		// });
-
-		// console.log($$("dashboard").getItem(payload.job_id))
-
-		console.log(row);
-
 		if (row == undefined)
 			return console.error("Submission, Cannot Find Row In Dashboard With ID: " + payload.job_id);
-
-		// row = rows[0];
 
 		row.current_state = "Finished Image Processing";
 		row.next_state = "Facial Detection";
@@ -199,8 +178,6 @@ ws.onmessage = (e) => {
 
 		row = $$("dashboard").getItem(payload.job_id);
 
-		console.log(row);
-
 		if (row == undefined)
 			return console.error("Facial Recognition, Cannot Find Row In Dashboard With ID: " + payload.job_id);
 
@@ -228,7 +205,6 @@ let process_context_menu = {
 	data:["Kill"],
 	on:{
 		onItemClick:function(id){
-			// console.log(this.getContext().id.row)
 			let selected_row = $$("process_registration_table").getItem(this.getContext().id.row);
 			if (!selected_row) return;
 
@@ -237,9 +213,7 @@ let process_context_menu = {
 				type: "DELETE",
 				contentType: "application/text",
 				headers: {
-					// "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-					// "Access-Control-Allow-Headers": "x-requested-with",
-					// 'Access-Control-Allow-Origin': '*',
+
 				},
 				success: function(data, text) {
 
@@ -264,8 +238,6 @@ let node_context_menu = {
 		config:{
 			on: { 
 				onItemClick:function(id){
-					// console.log($$("node_menu").getContext());
-					// console.log(id);
 
 					let selected_row = $$("node_registration_table").getItem($$("node_menu").getContext().id.row);
 					if (!selected_row) return;
@@ -275,9 +247,7 @@ let node_context_menu = {
 						type: "POST",
 						contentType: "application/text",
 						headers: {
-							// "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-							// "Access-Control-Allow-Headers": "x-requested-with",
-							// 'Access-Control-Allow-Origin': '*',
+
 						},
 						success: function(data, text) {
 
@@ -306,10 +276,8 @@ let retrieve_logs = function(ip,  pid, cb) {
 		},
 		success: function(data, text) {
 
-			// console.log(data, text);
 			$$("process_logs_textarea").setValue(data.result);
 			cb();
-			// $$("center_view_multi").setValue("process_logs_text");
 
 		}, error: function(request, status, error) {
 
@@ -331,9 +299,7 @@ webix.ui({
 					gravity: 1,
 					view:"sidebar",
 					id: "prject_menu",
-					// css:theme,
 					width:200,
-					// collapsed:(screen !== "wide")
 					data:[
 						{ id:"dashboard", value: "Dashboard", icon:"mdi mdi-cart" },
 						{ id:"customers", value: "Administration", icon:"mdi mdi-account-box", data:[
@@ -356,9 +322,6 @@ webix.ui({
 							view:"datatable", 
 							autoConfig:true, 
 							columns:[
-								// {
-								// 	id:"id", header:"#", width:40, sort:"int", tooltip:false
-								// }, 
 								{
 									id:"id", header:"User Job Submission ID", width:350, tooltip:false
 								}, {
@@ -403,7 +366,6 @@ webix.ui({
 										});
 
 										BEGIN_NODE_INSERT = true;
-										// console.log(res)
 									}
 								})
 							}
@@ -450,7 +412,6 @@ webix.ui({
 										});
 
 										BEGIN_PROCESS_INSERT = true;
-										// console.log(res)
 									}
 								})
 							},
@@ -521,10 +482,7 @@ webix.ui({
 									view: "textarea",
 									id: "process_logs_textarea"
 								}
-
 							]
-							// view: "textarea",
-							
 						}
 					]
 				},
@@ -536,5 +494,3 @@ webix.ui({
 
 webix.ui(node_context_menu).attachTo($$("node_registration_table"));
 webix.ui(process_context_menu).attachTo($$("process_registration_table"));
-
-// 2|29987|192.168.1.205|facial-detection|1572178039

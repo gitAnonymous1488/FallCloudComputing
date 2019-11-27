@@ -150,7 +150,7 @@ heart.createEvent(1, function(count, last){
 
 app.get("/logs/:pid", (req, res) => {
 	let pid = req.params.pid;
-	let request_ip = req.connection.remoteAddress.split(":")[-1];
+	let request_ip = req.connection.remoteAddress.split(":")[req.connection.remoteAddress.split(":").length - 1];
 	
 	if (!req.params.pid) {
 		res.status(404).json({"err": "Request Did Not Include PID For Logs"});
@@ -171,7 +171,7 @@ app.get("/logs/:pid", (req, res) => {
 });
 
 app.post("/start/:name", (req, res) => {
-	let request_ip = req.connection.remoteAddress.split(":")[-1];
+	let request_ip = req.connection.remoteAddress.split(":")[req.connection.remoteAddress.split(":").length - 1];
 
 	if (!req.params.name) {
 		res.status(404).json({"err": "Request Did Not Include Step Name."});
@@ -200,31 +200,27 @@ app.post("/start/:name", (req, res) => {
 });
 
 app.delete("/kill/:pid", (req, res) => {
+	let request_ip = req.connection.remoteAddress.split(":")[req.connection.remoteAddress.split(":").length - 1];
 
 	logger.info('Kill Request Came In.');
 
 	if (!req.params.pid) {
 		res.status(404).json({"err": "Did not pass in pid"});
-		return logger.error("Did not pass in pid.");
+		return logger.error(util.format('%s [%s](%s)', ("Did not pass in pid.").padEnd(65, " "), request_ip, "/kill"));
 	}
 
-	logger.info('Kill Request Came In For PID: ' + req.params.pid);
+	logger.info(util.format('%s (%s)', ('Kill Request Came In For PID: ' + req.params.pid).padEnd(80, " "), "/kill"));
 	
 	exec("kill -9 " + req.params.pid, (err, stdout, stderr) => {
 		if (err) {
-			logger.error(err);
-			return res.status(400).json({"err": err});
+			res.status(400).json({"err": err});
+			return logger.error(util.format('%s [%s](%s)', (err).padEnd(65, " "), request_ip, "/kill"));
 		}
-
-
-		// shuold show
-		// [2]    25763 killed     python3 psql_table.py
-		// console.log(stdout);
 
 
 		res.status(200).json({"result": "killed"});
 
-		logger.info('Kill Request For PID: ' + req.params.pid + " Successful.");
+		logger.info(util.format('%s (%s)', ('Kill Request For PID: ' + req.params.pid + " Successful.").padEnd(80, " "), "/kill"));
 	});
 	
 });

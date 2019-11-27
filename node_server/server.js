@@ -22,7 +22,6 @@ const uuidv4      = require('uuid/v4');
 const heart = heartbeats.createHeart(hb_timer);
 heart.createEvent(1, function(count, last){
 	pool.connect((err, client, done) => {
-		// done();
 		if (err) {
 			console.log(err);
 			throw err;
@@ -44,7 +43,6 @@ heart.createEvent(1, function(count, last){
 
 heart.createEvent(1, function(count, last){
 	pool.connect((err, client, done) => {
-		// done();
 		if (err) {
 			console.log(err);
 			throw err;
@@ -74,8 +72,6 @@ wss.on('connection', function connection(ws) {
 	ws.on('message', function incoming(message) {
 		console.log('received: %s', message);
 	});
-
-	// console.log("COnnect")
 });
 
 function broadcast_msg(msg) {
@@ -117,14 +113,6 @@ pool.on('error', (err, client) => {
 	console.error('Unexpected error on idle client', err)
 	process.exit(-1)
 });
-
-/*
-
-submission_job
-image_job
-detection_job
-
-*/
 
 pg_notify_channels("delete_node_event");
 pg_notify_channels("new_node_heartbeat_event");
@@ -172,16 +160,13 @@ app.get("/process_registration_table", (req, res) => {
 });
 
 app.post("/user_submission", (req, res) => {
-	// console.log(req.body);
 
 	if (!req.body.photo) {
 		return res.status(404).json({"err": "Did not pass in photo."});
-		// return logger.error("Did not pass in photo.");
 	}
 
 	if (!req.body.photo_name) {
 		return res.status(404).json({"err": "Did not pass in photo name."});
-		// return logger.error("Did not pass in photo name.");
 	}
 
 	let file_name = __dirname.replace("node_server", "") + "saved_imgs/";
@@ -190,10 +175,8 @@ app.post("/user_submission", (req, res) => {
 	let b64_photo = new Buffer.from(req.body.photo, 'base64');
 
 	fs.writeFile(file_name, b64_photo, (err) => {
-	    // throws an error, you could also catch it here
-	    if (err) throw err;
 
-	    // res.status(200).json({"result": "got it"});
+	    if (err) throw err;
 
 	    pool.connect((err, client, done) => {
 	    	if (err) throw err;
@@ -227,79 +210,4 @@ app.all('/', function(req, res, next) {
  });
 // ############### PREVENT CORS ERRR ###############
 
-// app.listen(port, () => {})
 http_server.listen(port);
-
-
-/*
-pool.connect((err, client, done) => {
-	if (err) throw err;
-
-	client.on('notification', function(msg) {
-
-		broadcast_msg(JSON.stringify(msg));
-	});
-	
-	var query = client.query("LISTEN delete_node_event");
-});
-
-pool.connect((err, client, done) => {
-	if (err) throw err;
-
-	client.on('notification', function(msg) {
-		broadcast_msg(JSON.stringify(msg));
-	});
-	
-	var query = client.query("LISTEN new_node_heartbeat_event");
-});
-
-pool.connect((err, client, done) => {
-	if (err) throw err;
-
-	client.on('notification', function(msg) {
-		broadcast_msg(JSON.stringify(msg));
-	});
-	
-	var query = client.query("LISTEN new_node_event");
-});
-
-pool.connect((err, client, done) => {
-	if (err) throw err;
-
-	client.on('notification', function(msg) {
-		broadcast_msg(JSON.stringify(msg));
-	});
-	
-	var query = client.query("LISTEN delete_process_event");
-});
-
-pool.connect((err, client, done) => {
-	if (err) throw err;
-
-	client.on('notification', function(msg) {
-		broadcast_msg(JSON.stringify(msg));
-	});
-	
-	var query = client.query("LISTEN new_process_heartbeat_event");
-});
-
-pool.connect((err, client, done) => {
-	if (err) throw err;
-
-	client.on('notification', function(msg) {
-		broadcast_msg(JSON.stringify(msg));
-	});
-	
-	var query = client.query("LISTEN new_process_event");
-});
-
-pool.connect((err, client, done) => {
-	if (err) throw err;
-
-	client.on('notification', function(msg) {
-		broadcast_msg(JSON.stringify(msg));
-	});
-	
-	var query = client.query("LISTEN process_update");
-});
-*/

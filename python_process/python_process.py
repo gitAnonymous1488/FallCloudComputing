@@ -19,7 +19,6 @@ DEBUG_IMG_PROC_LOG 			= True
 DEBUG_IMG_FD_LOG 			= True
 DEBUG_IMG_FR_LOG 			= True
 UPDATE_CHANNEL 				= "process_update"
-# UPDATE_CHANNEL				= None
 THREAD_CYCLE_TIME 			= 10
 # 
 
@@ -44,8 +43,6 @@ THREAD_LIST 		= []
 THREAD_LIST_LOCK 	= threading.Lock()
 PG_CONN_LOCK		= threading.Lock()
 
-# RAM_USAGE.memory_info().rss
-
 ###############					 REMOVE THE EXIT CONDITION !!!
 if __name__ == "__main__":
 	try:
@@ -53,7 +50,6 @@ if __name__ == "__main__":
 	except Exception as e:
 		exit("Unable to read config file. {}".format(e))
 
-	# CHANNEL 		= file_content["database_connections"]["channel"]
 	CHANNEL 		= None
 	HOST 			= file_content["database_connections"]["host"]
 	PASS 			= file_content["database_connections"]["password"]
@@ -203,7 +199,6 @@ class process_stuff_thread(threading.Thread):
 								"pid": PID, "job_id": contents[1], "name": NAME
 							}
 							curs.execute("SELECT pg_notify(%s, %s);", (UPDATE_CHANNEL, json.dumps(msg)))
-							# self.connection.commit()
 						except Exception as e:
 							LOGGER.error("Unable to notify the state update.")
 							LOGGER.error(e)
@@ -285,19 +280,13 @@ class process_stuff_thread(threading.Thread):
 								"pid": PID, "job_id": contents[1], "name": NAME
 							}
 							curs.execute("SELECT pg_notify(%s, %s);", (UPDATE_CHANNEL, json.dumps(msg)))
-							# self.connection.commit()
 						except Exception as e:
 							LOGGER.error("Unable to notify the state update.")
 							LOGGER.error(e)
 
-					# if DEBUG_IMG_FD_LOG: LOGGER.debug(bounding_box)
-
 					if bounding_box is None:
 						err = "Did Not Receive the bounding box of a face."
 						LOGGER.error(err)
-						# break
-
-					# if DEBUG_IMG_FD_LOG: LOGGER.debug(bounding_box)
 
 					if err: break
 
@@ -375,19 +364,15 @@ class process_stuff_thread(threading.Thread):
 								"pid": PID, "job_id": contents[1], "name": NAME
 							}
 							curs.execute("SELECT pg_notify(%s, %s);", (UPDATE_CHANNEL, json.dumps(msg)))
-							# self.connection.commit()
 						except Exception as e:
 							LOGGER.error("Unable to notify the state update.")
 							LOGGER.error(e)
 
-					# if DEBUG_IMG_FR_LOG: LOGGER.debug(bounding_box)
 
 					if person_name is None:
 						err = "Did Not Receive The Name Of The Person"
 						LOGGER.error(err)
-						# break
 
-					# if DEBUG_IMG_FR_LOG: LOGGER.debug(bounding_box)
 
 					if err: break
 
@@ -550,7 +535,6 @@ def facial_recognition(photo_path, bounding_box):
 
 
 def randomString(stringLength=10):
-    """Generate a random string of fixed length """
     letters = string.ascii_lowercase
     return ''.join(random.choice(letters) for i in range(stringLength))
 
