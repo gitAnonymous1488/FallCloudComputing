@@ -7,12 +7,18 @@ ws.onopen = () => {
 
 }
 
+// let TRANSLATED_STATES = {
+// 	"b"
+// }
+
 ws.onmessage = (e) => {
 
 	let res = null;
 
 	// new_node_event
 	let data = JSON.parse(e.data);
+
+	// console.log(data);
 
 	if (!data.hasOwnProperty('channel') || !data.hasOwnProperty("payload"))
 		return;
@@ -65,7 +71,7 @@ ws.onmessage = (e) => {
 
 	if (data.channel == "process_update") {
 		// console.log(data)
-		let json_data = null;
+		let json_data = null, row;
 
 		try {
 			json_data = JSON.parse(data.payload)
@@ -74,23 +80,138 @@ ws.onmessage = (e) => {
 			return;
 		}
 
-		console.log(json_data)
-
 		let update_row = $$("process_registration_table").getItem(json_data.registration_id);
 
 		if (json_data.hasOwnProperty("state"))
 			update_row.process_state = json_data.state;
 
 		if (json_data.hasOwnProperty("update")) {
-			if (json_data.update == "start_job")
+			if (json_data.update == "start_job"){
 				update_row.process_job_id = json_data.job_id;
-			else if (json_data.update == "finnish_job")
+			} else if (json_data.update == "finnish_job") {
 				update_row.process_job_id = "-";
+			}
+
+			if (json_data.update == "start_job") {
+
+				row = $$("dashboard").find((obj) => {
+					return obj.id == json_data.job_id;
+				});
+
+				if (row.length == 0)
+					return console.error("Start/Finish_Job, Cannot Find Row In Dashboard With ID: " + payload.job_id);
+
+				if (json_data.name == "image_processing") {
+					row.current_state = "Image Processing";
+					row.next_state = "Finished Image Processingn";
+				} else if (json_data.name == "facial-detection") {
+					row.current_state = "Facial Detection";
+					row.next_state = "Finished Facial Detection";
+				} else if (json_data.name == "facial-recognition") {
+					row.current_state = "Facial Recognition";
+					row.next_state = "Finished Facial Recognition";
+				}
+
+				$$("dashboard").updateItem(json_data.job_id, row);	
+
+			}
 		} 
 		// update_row 
 
 		// console.log(json_data)
 	}
+
+	if (data.channel == "submission_job") {
+		let payload;
+
+		try {
+			payload = JSON.parse(data.payload)
+		} catch (e) {
+			console.error("Tried Parsing \"submission_job\" websocket");
+			return console.error(e);
+		}
+
+		$$("dashboard").add({
+			id: payload.job_id, current_state: "Submitted", next_state: "Image Processing", submission_time: payload.submission_time
+		}, 0);
+	}
+
+	if (data.channel == "image_job") {
+		let payload, rows, row;
+		try {
+			payload = JSON.parse(data.payload)
+		} catch (e) {
+			console.error("Tried Parsing \"image_job\" websocket");
+			return console.error(e);
+		}
+
+		row = $$("dashboard").getItem(payload.job_id);
+
+		// rows = $$("dashboard").find((obj) => {
+		// 	return obj.id == payload.job_id;
+		// });
+
+		// console.log($$("dashboard").getItem(payload.job_id))
+
+		console.log(row);
+
+		if (row == undefined)
+			return console.error("Submission, Cannot Find Row In Dashboard With ID: " + payload.job_id);
+
+		// row = rows[0];
+
+		row.current_state = "Finished Image Processing";
+		row.next_state = "Facial Detection";
+
+		$$("dashboard").updateItem(row.id, row);
+	}
+
+	if (data.channel == "detection_job") {
+		let payload, row;
+		try {
+			payload = JSON.parse(data.payload)
+		} catch (e) {
+			console.error("Tried Parsing \"detection_job\" websocket");
+			return console.error(e);
+		}
+
+		row = $$("dashboard").getItem(payload.job_id);
+
+		if (row == undefined)
+			return console.error("Facial Detection, Cannot Find Row In Dashboard With ID: " + payload.job_id);
+
+		row.current_state = "Finished Facial Detection";
+		row.next_state = "Facial Recognition";
+
+		$$("dashboard").updateItem(row.id, row);
+	}
+
+	if (data.channel == "recognition_job") {
+		let payload, row;
+
+		try {
+			payload = JSON.parse(data.payload)
+		} catch (e) {
+			console.log(data.payload)
+			console.error("Tried Parsing \"recognition_job\" websocket");
+			return console.error(e);
+		}
+
+		row = $$("dashboard").getItem(payload.job_id);
+
+		console.log(row);
+
+		if (row == undefined)
+			return console.error("Facial Recognition, Cannot Find Row In Dashboard With ID: " + payload.job_id);
+
+		row.current_state = "Finished Facial Recognition";
+		row.next_state = "-";
+		row.submission_time_finish = payload.submission_time;
+		row.processing_time = parseInt(row.submission_time_finish) - parseInt(row.submission_time);
+
+		$$("dashboard").updateItem(row.id, row);
+	}
+
 }
 
 ws.onerror = (e) => {
@@ -181,9 +302,7 @@ let retrieve_logs = function(ip,  pid, cb) {
 		type: "GET",
 		contentType: "application/text",
 		headers: {
-			// "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-			// "Access-Control-Allow-Headers": "x-requested-with",
-			// 'Access-Control-Allow-Origin': '*',
+
 		},
 		success: function(data, text) {
 
@@ -232,7 +351,29 @@ webix.ui({
 					id: "center_view_multi",
 					gravity: 5,
 					cells: [
-						{id:"dashboard", template: "Dashoboard"},
+						{
+							id:"dashboard", 
+							view:"datatable", 
+							autoConfig:true, 
+							columns:[
+								// {
+								// 	id:"id", header:"#", width:40, sort:"int", tooltip:false
+								// }, 
+								{
+									id:"id", header:"User Job Submission ID", width:350, tooltip:false
+								}, {
+									id:"current_state", header:"User Job State", width:200, tooltip:false
+								}, {
+									id:"next_state", header:"Waiting On State", width:200, tooltip:false
+								}, {
+									id: "submission_time", header:"Time Submission Came In", width:200, tooltip:false
+								}, {
+									id: "submission_time_finish", header:"Time Submission Processed", width:200, tooltip:false
+								}, {
+									id: "processing_time", header:"Time To Process", width:200, tooltip:false
+								}
+							], data: [],
+						},
 						{
 							view:"datatable", 
 							id: "node_registration_table",
@@ -262,7 +403,7 @@ webix.ui({
 										});
 
 										BEGIN_NODE_INSERT = true;
-										console.log(res)
+										// console.log(res)
 									}
 								})
 							}
@@ -279,7 +420,7 @@ webix.ui({
 								}, {
 									id:"process_ip", header:"Process IP", width:125, tooltip:false
 								}, {
-									id:"process_name", header:"Process Name", width:175, tooltip:false
+									id:"process_name", header:"Process Name", sort:"string", width:175, tooltip:false
 								}, {
 									id:"process_state", header:"Process State", width:100, tooltip:false
 								}, {
@@ -309,7 +450,7 @@ webix.ui({
 										});
 
 										BEGIN_PROCESS_INSERT = true;
-										console.log(res)
+										// console.log(res)
 									}
 								})
 							},

@@ -1,21 +1,21 @@
-const port = 3000;
+const port        = 3000;
 const config_json = require("../config.json");
-const fs = require("fs");
+const fs          = require("fs");
 
 
-const http = require('http');
-const web_socket = require('ws');
-const heartbeats = require('heartbeats');
+const http        = require('http');
+const web_socket  = require('ws');
+const heartbeats  = require('heartbeats');
 
 
-const express = require('express');
-var bodyParser = require("body-parser");
-const app = express();
+const express     = require('express');
+var bodyParser    = require("body-parser");
+const app         = express();
 
 
-const hb_timer = 4000;
+const hb_timer    = 4000;
 
-const uuidv4 = require('uuid/v4');
+const uuidv4      = require('uuid/v4');
 
 
 // ############### HEARTBEAT THE SERVER ###############
@@ -118,6 +118,14 @@ pool.on('error', (err, client) => {
 	process.exit(-1)
 });
 
+/*
+
+submission_job
+image_job
+detection_job
+
+*/
+
 pg_notify_channels("delete_node_event");
 pg_notify_channels("new_node_heartbeat_event");
 pg_notify_channels("new_node_event");
@@ -126,6 +134,10 @@ pg_notify_channels("new_process_heartbeat_event");
 pg_notify_channels("new_process_heartbeat_event");
 pg_notify_channels("new_process_event");
 pg_notify_channels("process_update");
+pg_notify_channels("submission_job");
+pg_notify_channels("image_job");
+pg_notify_channels("detection_job");
+pg_notify_channels("recognition_job");
 
 // ###############################################
 
@@ -171,8 +183,6 @@ app.post("/user_submission", (req, res) => {
 		return res.status(404).json({"err": "Did not pass in photo name."});
 		// return logger.error("Did not pass in photo name.");
 	}
-
-	// logger.info('Submission Came In (NAME): ' + req.body.photo_name);
 
 	let file_name = __dirname.replace("node_server", "") + "saved_imgs/";
 	file_name += req.body.photo_name.replace(".jpg", "");

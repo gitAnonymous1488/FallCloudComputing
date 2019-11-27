@@ -480,6 +480,20 @@ def create_triggers(connection):
 		exit(-1)
 
 
+	###############					 CREATE THE AFTER INSERT FACIAL RECOGNITION!!!
+	try:
+		create_sql_from_file(file_content["files"]["facial_recognition_function"], connection)
+	except Exception as e:
+		log_msg("Unable to create after facial_recognition trigger function. {}".format(e))
+		exit(-1)
+
+	try:
+		create_sql_from_file(file_content["files"]["facial_recognition_trigger"], connection)
+	except Exception as e:
+		log_msg("Unable to create after facial_recognition trigger. {}".format(e))
+		exit(-1)
+
+
 def create_views(connection):
 	try:
 		file_content = read_configs.retrieve_config()

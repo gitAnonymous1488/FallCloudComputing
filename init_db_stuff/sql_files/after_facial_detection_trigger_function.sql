@@ -18,5 +18,5 @@ END;
 $BODY$
   LANGUAGE plpgsql VOLATILE
   COST 100;
-ALTER FUNCTION public.after_image_processing_insert()
+ALTER FUNCTION public.after_facial_detection_insert()
   OWNER TO postgres;
